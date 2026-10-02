@@ -113,18 +113,19 @@ p { margin: 0; }
 .layout {
   display: grid; gap: var(--spacing-md);
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "skin" "preview" "options";
+  grid-template-areas: "skin" "scene" "preview" "options";
 }
 .area-skin { grid-area: skin; }
+.area-scene { grid-area: scene; }
 .area-preview { grid-area: preview; }
 .area-options { grid-area: options; }
 @media (min-width: 1024px) {
   .layout {
     grid-template-columns: 360px minmax(0, 1fr);
-    grid-template-areas: "skin preview" "options preview";
+    grid-template-areas: "skin preview" "scene preview" "options preview";
     align-items: start;
   }
-  .area-preview { grid-row: 1 / span 2; position: sticky; top: var(--spacing-md); }
+  .area-preview { grid-row: 1 / span 3; position: sticky; top: var(--spacing-md); }
 }
 
 .panel {
@@ -250,7 +251,6 @@ legend { font-size: var(--font-size-caption); font-weight: 700; color: var(--col
   background: repeating-conic-gradient(var(--color-check-a) 0 25%, var(--color-check-b) 0 50%) 0 0 / 20px 20px;
   transition: transform 70ms var(--ease-out);
 }
-.stage canvas.is-bounce { transform: translateY(-2.5%); }
 .stage-caption { margin-top: var(--spacing-xs); font-size: var(--font-size-caption); color: var(--color-muted); }
 .empty-state {
   position: absolute; inset: 0; bottom: 30px; display: grid; place-content: center; gap: var(--spacing-2xs);
@@ -294,3 +294,34 @@ legend { font-size: var(--font-size-caption); font-weight: 700; color: var(--col
 .howto summary::-webkit-details-marker { display: none; }
 .howto summary::before { content: "▸"; color: var(--color-muted); transition: transform var(--duration-base) var(--ease-out); }
 .howto[open] summary::before { transform: rotate(90deg); }
+
+/* ---------- 상호작용 고르기 ---------- */
+.scene-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-xs); }
+.scene-option { position: relative; display: block; cursor: pointer; }
+.scene-option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.scene-card {
+  display: flex; flex-direction: column; gap: 2px; height: 100%; min-height: 64px;
+  padding: var(--spacing-sm); border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast), background-color var(--duration-fast);
+}
+.scene-option:hover .scene-card { border-color: var(--color-border-strong); }
+.scene-option input:checked + .scene-card { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.scene-option input:checked + .scene-card .scene-name::before { content: "✓ "; color: var(--color-primary-strong); }
+.scene-option input:focus-visible + .scene-card { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.scene-name { font-weight: 700; font-size: var(--font-size-caption); }
+.scene-desc { font-size: 13px; color: var(--color-muted); line-height: var(--line-height-tight); }
+
+/* ---------- 재생 도구 ---------- */
+.preview-tools { align-items: center; }
+.preview-tools .btn { min-width: 140px; }
+.preview-tools .btn[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary-strong); background: var(--color-primary-soft); }
+.inline-field { display: flex; align-items: center; gap: var(--spacing-xs); }
+.inline-field .field-label { margin: 0; }
+.prop-group { display: grid; gap: var(--spacing-xs); }
+
+/* ---------- GIF ---------- */
+.gif-box { margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); gap: var(--spacing-sm); }
+.gif-box legend { float: left; width: 100%; font-size: var(--font-size-subheading); font-weight: 700; color: var(--color-text); letter-spacing: 0; margin-bottom: var(--spacing-2xs); padding: 0; }
+.gif-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--spacing-sm); }
+.gif-row .field { flex: 1 1 140px; }
+.gif-row .color-field { min-height: var(--touch-target); }

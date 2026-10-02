@@ -6,12 +6,50 @@
 const { W, H, normalizeSkin, renderPoses } = window.PetRenderer;
 const $ = id => document.getElementById(id);
 
+/** Typing Pet의 이미지 칸 세 개 */
 const POSES = [
-  { id: 'idle',  label: '기본',   file: 'default.png',    note: '두 손 모두 키보드 위' },
-  { id: 'left',  label: '왼손',   file: 'left_hand.png',  note: '왼손을 든 모습' },
-  { id: 'right', label: '오른손', file: 'right_hand.png', note: '오른손을 든 모습' },
+  { id: 'idle',  label: '기본',   file: 'default.png' },
+  { id: 'left',  label: '왼손',   file: 'left_hand.png' },
+  { id: 'right', label: '오른손', file: 'right_hand.png' },
 ];
 const poseLabel = id => POSES.find(p => p.id === id).label;
+
+/* 움직임: [모습, 시간(1/100초), 통통 튀기] — 미리보기 재생과 GIF가 같은 순서를 쓴다 */
+const TIMELINES = {
+  typing: [['left', 12, 1], ['right', 12, 1], ['left', 12, 1], ['right', 12, 1], ['left', 12, 1], ['right', 12, 1], ['idle', 80, 0]],
+  chop: [['left', 30, 0], ['right', 16, 1], ['left', 30, 0], ['right', 16, 1], ['idle', 70, 0]],
+};
+/** 상호작용마다 다른 설명 */
+const SCENE_INFO = {
+  desk: {
+    notes: { idle: '두 손 모두 키보드 위', left: '왼손을 든 모습', right: '오른손을 든 모습' },
+    timeline: 'typing', swap: '왼손 ↔ 오른손 바꾸기', raise: '팔 드는 높이',
+  },
+  tree: {
+    notes: { idle: '도끼를 들고 서 있기', left: '도끼 치켜들기', right: '나무 내려찍기' },
+    timeline: 'chop', swap: '나무를 반대쪽에 두기', raise: '도끼 치켜드는 높이',
+  },
+  button: {
+    notes: { idle: '두 손을 버튼 위에', left: '왼쪽 버튼 누르기', right: '오른쪽 버튼 누르기' },
+    timeline: 'typing', swap: '왼손 ↔ 오른손 바꾸기', raise: '팔 드는 높이',
+  },
+  crafting: {
+    notes: { idle: '두 손 모두 제작대 위', left: '왼손을 든 모습', right: '오른손을 든 모습' },
+    timeline: 'typing', swap: '왼손 ↔ 오른손 바꾸기', raise: '팔 드는 높이',
+  },
+};
+const BOUNCE_PX = 8; // 통통 튈 때 올라가는 높이 (800×500 기준)
+const currentScene = () => document.querySelector('input[name="scene"]:checked').value;
+
+/** 타임라인 → 프레임 목록. 튀는 단계는 [잠깐 위로, 제자리] 두 프레임으로 나눈다 */
+function animationFrames(bounce) {
+  const frames = [];
+  for (const [pose, cs, b] of TIMELINES[SCENE_INFO[currentScene()].timeline]) {
+    if (b && bounce) frames.push({ pose, cs: 4, dy: -BOUNCE_PX }, { pose, cs: cs - 4, dy: 0 });
+    else frames.push({ pose, cs, dy: 0 });
+  }
+  return frames;
+}
 
 /* ---------- 상태 메시지 (기호 + 글자, 색만으로 전달하지 않는다) ---------- */
 const TONE_MARK = { success: '✓ ', error: '✕ ', loading: '' };
@@ -87,6 +125,8 @@ async function useSkinBlob(blob, name) {
   $('zip-btn').disabled = false;
   $('zip-help').textContent = 'default.png · left_hand.png · right_hand.png';
   for (const b of document.querySelectorAll('[data-download]')) b.disabled = false;
+  $('play-btn').disabled = false;
+  $('gif-btn').disabled = false;
   renderNow();
 }
 
@@ -128,12 +168,14 @@ async function loadFile(file) {
 }
 
 /* ---------- 옵션 ---------- */
-const RANGE_UNITS = { raise: '°', spread: '°', headPitch: '°', yaw: '°', pitch: '°', outline: 'px', scale: '%' };
+const RANGE_UNITS = {
+  headScale: '%', bodyScale: '%', raise: '°', spread: '°', headPitch: '°', yaw: '°', pitch: '°', outline: 'px', scale: '%',
+};
 const CHECKS = ['overlay', 'headTilt', 'swap', 'shade', 'desk', 'kb'];
-const VALUES = ['model', 'kbTheme', 'valign', 'deskWood', 'outlineColor'];
+const VALUES = ['model', 'kbTheme', 'valign', 'deskWood', 'outlineColor', 'logKind', 'axeKind', 'blockKind', 'buttonKind'];
 
 function readOptions() {
-  const o = {};
+  const o = { scene: currentScene() };
   for (const [id, unit] of Object.entries(RANGE_UNITS)) {
     o[id] = Number($(id).value);
     $(id + '-out').textContent = $(id).value + unit;
@@ -145,8 +187,20 @@ function readOptions() {
   return o;
 }
 
+/** 고른 상호작용에 맞게 옵션·설명을 바꾼다 */
+function applySceneUI() {
+  const scene = currentScene(), info = SCENE_INFO[scene];
+  for (const el of document.querySelectorAll('[data-scenes]')) el.hidden = !el.dataset.scenes.split(' ').includes(scene);
+  $('swap-label').textContent = info.swap;
+  $('raise-label').textContent = info.raise;
+  for (const p of POSES) {
+    resultNotes[p.id].textContent = info.notes[p.id];
+    resultCanvases[p.id].setAttribute('aria-label', `${p.label} 이미지: ${info.notes[p.id]}`);
+  }
+}
+
 /* ---------- 결과 목록 (DOM으로 만든다, innerHTML 안 씀) ---------- */
-const resultCanvases = {};
+const resultCanvases = {}, resultNotes = {};
 function buildResults() {
   const list = $('results');
   for (const p of POSES) {
@@ -156,14 +210,13 @@ function buildResults() {
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', `${p.label} 이미지: ${p.note}`);
     resultCanvases[p.id] = canvas;
 
     const name = document.createElement('p');
     name.className = 'result-name';
     name.append(p.label + ' ');
     const note = document.createElement('span');
-    note.textContent = p.note;
+    resultNotes[p.id] = note;
     name.append(note);
 
     const btn = document.createElement('button');
@@ -202,27 +255,26 @@ function renderNow() {
 /* ---------- 미리보기 ---------- */
 const preview = $('preview');
 const pctx = preview.getContext('2d');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let shownPose = 'idle';
-function showPose(id) {
+/** dy: 위아래로 옮겨 그리기 (통통 튀기) */
+function showPose(id, dy = 0) {
   shownPose = id;
   pctx.clearRect(0, 0, W, H);
-  if (rendered) pctx.drawImage(rendered[id], 0, 0);
-  preview.setAttribute('aria-label', `Typing Pet 미리보기: ${poseLabel(id)}`);
+  if (rendered) pctx.drawImage(rendered[id], 0, reduceMotion.matches ? 0 : dy);
+  preview.setAttribute('aria-label', `Typing Pet 미리보기: ${poseLabel(id)} — ${SCENE_INFO[currentScene()].notes[id]}`);
 }
 function selectedPose() { return document.querySelector('input[name="pose"]:checked').value; }
 
-// Typing Pet처럼: 키를 누를 때마다 왼손·오른손을 번갈아 들고, 잠시 멈추면 고른 모습으로 돌아온다
+// Typing Pet처럼: 키를 누를 때마다 왼손·오른손 모습이 번갈아 나오고, 잠시 멈추면 고른 모습으로 돌아온다
 let nextHand = 'left', restTimer = 0, bounceTimer = 0;
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 function tap() {
-  if (!rendered) return;
-  showPose(nextHand);
+  if (!rendered || playing) return;
+  const pose = nextHand;
   nextHand = nextHand === 'left' ? 'right' : 'left';
-  if ($('bounce').checked && !reduceMotion.matches) {
-    preview.classList.add('is-bounce');
-    clearTimeout(bounceTimer);
-    bounceTimer = setTimeout(() => preview.classList.remove('is-bounce'), 70);
-  }
+  showPose(pose, $('bounce').checked ? -BOUNCE_PX : 0);
+  clearTimeout(bounceTimer);
+  bounceTimer = setTimeout(() => showPose(pose), 60);
   clearTimeout(restTimer);
   restTimer = setTimeout(() => showPose(selectedPose()), 350);
 }
@@ -235,12 +287,84 @@ document.addEventListener('keydown', e => {
   tap();
 });
 
-let autoTimer = 0;
-$('autoplay').addEventListener('change', e => {
-  clearInterval(autoTimer);
-  if (e.target.checked) autoTimer = setInterval(() => { if (Math.random() < 0.8) tap(); }, 140);
+// 움직임 재생: GIF와 같은 타임라인을 반복한다
+let playing = false, playTimer = 0;
+function setPlaying(on) {
+  playing = on;
+  clearTimeout(playTimer);
+  const btn = $('play-btn');
+  btn.setAttribute('aria-pressed', String(on));
+  btn.textContent = on ? '■ 재생 멈추기' : '▶ 움직임 재생';
+  if (!on) { showPose(selectedPose()); return; }
+  let i = 0;
+  const step = () => {
+    const frames = animationFrames($('bounce').checked);
+    const f = frames[i % frames.length];
+    showPose(f.pose, f.dy);
+    i++;
+    playTimer = setTimeout(step, f.cs * 10 / Number($('speed').value));
+  };
+  step();
+}
+$('play-btn').addEventListener('click', () => setPlaying(!playing));
+for (const r of document.querySelectorAll('input[name="pose"]')) r.addEventListener('change', () => { if (!playing) showPose(r.value); });
+for (const r of document.querySelectorAll('input[name="scene"]')) r.addEventListener('change', () => {
+  applySceneUI();
+  scheduleRender();
+  if (playing) setPlaying(true); // 새 타임라인으로 처음부터
 });
-for (const r of document.querySelectorAll('input[name="pose"]')) r.addEventListener('change', () => showPose(r.value));
+
+/* ---------- GIF ---------- */
+$('gifBg').addEventListener('change', e => { $('gifColorField').hidden = e.target.value !== 'custom'; });
+const nextTick = () => new Promise(r => setTimeout(r, 0));
+
+async function makeGif() {
+  const k = Number($('gifSize').value), w = Math.round(W * k), h = Math.round(H * k);
+  const bgChoice = $('gifBg').value, bg = bgChoice === 'custom' ? $('gifColor').value : bgChoice;
+  const transparent = bg === 'transparent';
+  const frames = animationFrames($('bounce').checked);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  const pixels = new Map(); // 같은 모습·높이는 한 번만 그린다
+  const frameRGBA = f => {
+    const key = f.pose + f.dy;
+    if (!pixels.has(key)) {
+      ctx.clearRect(0, 0, w, h);
+      if (!transparent) { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(rendered[f.pose], 0, f.dy * k, w, h);
+      pixels.set(key, ctx.getImageData(0, 0, w, h).data);
+    }
+    return pixels.get(key);
+  };
+
+  const enc = new window.GifEncoder({ width: w, height: h, transparent });
+  for (const f of frames) frameRGBA(f);
+  for (const data of pixels.values()) enc.sample(data);
+  for (const f of frames) {
+    enc.addFrame(frameRGBA(f), f.cs);
+    await nextTick(); // 화면이 멈추지 않게 프레임마다 숨을 돌린다
+  }
+  return new Blob([enc.finish()], { type: 'image/gif' });
+}
+
+$('gif-btn').addEventListener('click', async () => {
+  if (!rendered) return;
+  const btn = $('gif-btn');
+  btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.textContent = 'GIF 만드는 중';
+  setStatus('GIF를 만드는 중이에요…', 'loading');
+  try {
+    const blob = await makeGif();
+    saveBlob(blob, `${safeName()}_${currentScene()}.gif`);
+    setStatus(`GIF를 내려받았어요. (${Math.max(1, Math.round(blob.size / 1024))}KB)`, 'success');
+  } catch (e) {
+    setStatus('GIF를 만들지 못했어요. 크기를 400×250으로 줄여 다시 해 주세요.', 'error');
+  } finally {
+    btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = 'GIF 만들기';
+  }
+});
 
 /* ---------- 내려받기 ---------- */
 const toPngBytes = canvas => new Promise(resolve =>
@@ -346,6 +470,7 @@ optionsForm.addEventListener('reset', () => setTimeout(scheduleRender)); // rese
 
 /* ---------- 시작 ---------- */
 buildResults();
+applySceneUI();
 readOptions();
 const initialName = new URLSearchParams(location.search).get('name');
 if (initialName) { $('name-input').value = initialName; loadByName(initialName); }

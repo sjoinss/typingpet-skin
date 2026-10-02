@@ -6,7 +6,9 @@
 <meta name="description" content="마인크래프트 스킨으로 Typing Pet용 기본·왼손·오른손 이미지를 자동으로 만들어 줍니다.">
 <title>TypingPet 스킨 이미지 생성기</title>
 <link rel="stylesheet" href="styles.css">
+<script src="textures.js" defer></script>
 <script src="render.js" defer></script>
+<script src="gif.js" defer></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -15,7 +17,7 @@
 <header class="site-header">
   <div class="container">
     <h1 class="page-title">TypingPet 스킨 이미지 생성기</h1>
-    <p class="page-desc">마인크래프트 스킨으로 <a href="https://github.com/swoonqx/TypingPet" target="_blank" rel="noopener">Typing Pet</a>에 넣을 <strong>기본 · 왼손 · 오른손</strong> 이미지(800×500 투명 PNG)를 만들어요.</p>
+    <p class="page-desc">마인크래프트 스킨으로 <a href="https://github.com/swoonqx/TypingPet" target="_blank" rel="noopener">Typing Pet</a>에 넣을 <strong>기본 · 왼손 · 오른손</strong> 이미지(800×500 투명 PNG)와 움직이는 GIF를 만들어요.</p>
   </div>
 </header>
 
@@ -54,10 +56,34 @@
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </section>
 
-  <!-- 2. 미리보기 + 내려받기 (핵심 결과) -->
+  <!-- 2. 상호작용 고르기 -->
+  <section class="panel area-scene" aria-labelledby="scene-title">
+    <h2 class="section-title" id="scene-title"><span class="step" aria-hidden="true">2</span>상호작용 고르기</h2>
+    <fieldset class="scene-list">
+      <legend class="visually-hidden">캐릭터가 할 행동</legend>
+      <label class="scene-option">
+        <input type="radio" name="scene" value="desk" checked>
+        <span class="scene-card"><span class="scene-name">책상과 키보드</span><span class="scene-desc">손을 번갈아 들며 타자 치기</span></span>
+      </label>
+      <label class="scene-option">
+        <input type="radio" name="scene" value="tree">
+        <span class="scene-card"><span class="scene-name">나무 캐기</span><span class="scene-desc">도끼를 치켜들었다 내려찍기</span></span>
+      </label>
+      <label class="scene-option">
+        <input type="radio" name="scene" value="button">
+        <span class="scene-card"><span class="scene-name">버튼 누르기</span><span class="scene-desc">왼쪽·오른쪽 버튼 꾹 누르기</span></span>
+      </label>
+      <label class="scene-option">
+        <input type="radio" name="scene" value="crafting">
+        <span class="scene-card"><span class="scene-name">제작대로 조합하기</span><span class="scene-desc">제작대 위에서 손 번갈아 움직이기</span></span>
+      </label>
+    </fieldset>
+  </section>
+
+  <!-- 3. 미리보기 + 내려받기 (핵심 결과) -->
   <section class="panel area-preview" id="preview-section" aria-labelledby="preview-title" tabindex="-1">
     <div class="section-head">
-      <h2 class="section-title" id="preview-title"><span class="step" aria-hidden="true">2</span>미리보기</h2>
+      <h2 class="section-title" id="preview-title"><span class="step" aria-hidden="true">3</span>미리보기</h2>
       <div class="segmented" role="radiogroup" aria-label="미리볼 모습">
         <label><input type="radio" name="pose" value="idle" checked><span>기본</span></label>
         <label><input type="radio" name="pose" value="left"><span>왼손</span></label>
@@ -72,11 +98,19 @@
         <p class="helper">아이디를 입력하거나 스킨 파일을 올리면 여기에 캐릭터가 나타나요.</p>
         <button class="btn btn-secondary" type="button" id="example-btn">예시 스킨으로 먼저 해보기</button>
       </div>
-      <figcaption class="stage-caption" id="stage-caption">키보드를 눌러 보세요 — Typing Pet처럼 손을 번갈아 들어요.</figcaption>
+      <figcaption class="stage-caption" id="stage-caption">키보드를 눌러 보세요 — Typing Pet처럼 모습이 번갈아 바뀌어요.</figcaption>
     </figure>
 
     <div class="preview-tools">
-      <label class="check"><input type="checkbox" id="autoplay"> 자동 타이핑</label>
+      <button class="btn btn-secondary" type="button" id="play-btn" aria-pressed="false" disabled>▶ 움직임 재생</button>
+      <div class="inline-field">
+        <label class="field-label" for="speed">속도</label>
+        <select class="select select-sm" id="speed">
+          <option value="0.5">느리게</option>
+          <option value="1" selected>보통</option>
+          <option value="1.6">빠르게</option>
+        </select>
+      </div>
       <label class="check"><input type="checkbox" id="bounce" checked> 통통 튀기</label>
     </div>
 
@@ -86,19 +120,45 @@
       <button class="btn btn-primary btn-wide" type="button" id="zip-btn" disabled aria-describedby="zip-help">3장 한 번에 받기 (ZIP)</button>
       <p class="helper" id="zip-help">스킨을 불러오면 받을 수 있어요.</p>
     </div>
+
+    <fieldset class="gif-box">
+      <legend>움직이는 GIF로 저장</legend>
+      <p class="helper">미리보기의 움직임을 그대로 GIF로 만들어요. 공유하거나 프로필 이미지로 쓰기 좋아요.</p>
+      <div class="gif-row">
+        <div class="field">
+          <label class="field-label" for="gifBg">배경</label>
+          <select class="select" id="gifBg">
+            <option value="transparent">투명</option>
+            <option value="#ffffff">흰색</option>
+            <option value="custom">직접 고르기</option>
+          </select>
+        </div>
+        <label class="color-field" id="gifColorField" hidden><span>배경 색</span><input type="color" id="gifColor" value="#cde8ff"></label>
+        <div class="field">
+          <label class="field-label" for="gifSize">크기</label>
+          <select class="select" id="gifSize">
+            <option value="1">800×500</option>
+            <option value="0.5">400×250 (가벼움)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-wide" type="button" id="gif-btn" disabled>GIF 만들기</button>
+      <p class="helper" id="gif-help">투명 배경 GIF는 가장자리가 살짝 각져 보일 수 있어요.</p>
+    </fieldset>
+
     <details class="howto">
       <summary>Typing Pet에 넣는 방법</summary>
       <ol>
         <li>Typing Pet 트레이 아이콘 → <strong>설정</strong> → <strong>이미지 설정</strong>을 열어요.</li>
-        <li><strong>기본 / 왼손 / 오른손</strong>의 <em>이미지 변경</em>에서 받은 파일을 각각 골라요.</li>
+        <li><strong>기본 / 왼손 / 오른손</strong>의 <em>이미지 변경</em>에서 받은 PNG 파일을 각각 골라요.</li>
         <li>세 장은 같은 캔버스·같은 위치 기준이라 자연스럽게 바뀌어요.</li>
       </ol>
     </details>
   </section>
 
-  <!-- 3. 모양 조절 (선택) -->
+  <!-- 4. 모양 조절 (선택) -->
   <section class="panel area-options" aria-labelledby="options-title">
-    <h2 class="section-title" id="options-title"><span class="step" aria-hidden="true">3</span>모양 조절 <span class="optional">선택</span></h2>
+    <h2 class="section-title" id="options-title"><span class="step" aria-hidden="true">4</span>모양 조절 <span class="optional">선택</span></h2>
     <form id="options" class="options">
       <fieldset>
         <legend>캐릭터</legend>
@@ -110,49 +170,96 @@
             <option value="slim">슬림 (Alex, 3px)</option>
           </select>
         </div>
+        <div class="field range"><label class="field-label" for="headScale">머리 크기</label><output for="headScale" id="headScale-out"></output><input type="range" id="headScale" min="80" max="220" step="5" value="100" aria-describedby="body-help"></div>
+        <div class="field range"><label class="field-label" for="bodyScale">몸 크기</label><output for="bodyScale" id="bodyScale-out"></output><input type="range" id="bodyScale" min="50" max="100" step="5" value="100" aria-describedby="body-help"></div>
+        <p class="helper" id="body-help">머리는 크게, 몸은 작게 하면 귀여운 꼬마 비율이 돼요. 몸을 줄이면 소품도 같이 작아져요.</p>
         <label class="check"><input type="checkbox" id="overlay" checked> 2번째 레이어(모자·겉옷) 표시</label>
-        <label class="check"><input type="checkbox" id="headTilt" checked> 손을 들 때 고개 기울이기</label>
-        <label class="check"><input type="checkbox" id="swap"> 왼손 ↔ 오른손 바꾸기</label>
+        <label class="check"><input type="checkbox" id="headTilt" checked> 움직일 때 고개 기울이기</label>
+        <label class="check"><input type="checkbox" id="swap"> <span id="swap-label">왼손 ↔ 오른손 바꾸기</span></label>
       </fieldset>
 
       <fieldset>
         <legend>자세</legend>
-        <div class="field range"><label class="field-label" for="raise">팔 드는 높이</label><output for="raise" id="raise-out"></output><input type="range" id="raise" min="100" max="180" value="145"></div>
-        <div class="field range"><label class="field-label" for="spread">팔 벌리기</label><output for="spread" id="spread-out"></output><input type="range" id="spread" min="0" max="35" value="12"></div>
+        <div class="field range" data-scenes="desk tree crafting"><label class="field-label" for="raise" id="raise-label">팔 드는 높이</label><output for="raise" id="raise-out"></output><input type="range" id="raise" min="100" max="180" value="145"></div>
+        <div class="field range" data-scenes="desk crafting"><label class="field-label" for="spread">팔 벌리기</label><output for="spread" id="spread-out"></output><input type="range" id="spread" min="0" max="35" value="12"></div>
         <div class="field range"><label class="field-label" for="headPitch">고개 숙이기</label><output for="headPitch" id="headPitch-out"></output><input type="range" id="headPitch" min="-15" max="30" value="8"></div>
       </fieldset>
 
       <fieldset>
         <legend>카메라</legend>
-        <div class="field range"><label class="field-label" for="yaw">좌우 각도</label><output for="yaw" id="yaw-out"></output><input type="range" id="yaw" min="-40" max="40" value="20"></div>
+        <div class="field range"><label class="field-label" for="yaw">좌우 각도</label><output for="yaw" id="yaw-out"></output><input type="range" id="yaw" min="-45" max="45" value="20"></div>
         <div class="field range"><label class="field-label" for="pitch">내려다보는 각도</label><output for="pitch" id="pitch-out"></output><input type="range" id="pitch" min="0" max="40" value="16"></div>
         <label class="check"><input type="checkbox" id="shade" checked> 입체 명암</label>
       </fieldset>
 
       <fieldset>
         <legend>소품</legend>
-        <div class="field inline">
-          <label class="check"><input type="checkbox" id="desk" checked> 책상</label>
-          <label class="visually-hidden" for="deskWood">책상 재질</label>
-          <select class="select select-sm" id="deskWood">
-            <option value="oak">참나무 판자</option>
-            <option value="spruce">가문비나무 판자</option>
-            <option value="birch">자작나무 판자</option>
-            <option value="dark_oak">짙은 참나무 판자</option>
-            <option value="bookshelf">책장</option>
-          </select>
+        <div data-scenes="desk" class="prop-group">
+          <div class="field inline">
+            <label class="check"><input type="checkbox" id="desk" checked> 책상</label>
+            <label class="visually-hidden" for="deskWood">책상 재질</label>
+            <select class="select select-sm" id="deskWood">
+              <option value="oak">참나무 판자</option>
+              <option value="spruce">가문비나무 판자</option>
+              <option value="birch">자작나무 판자</option>
+              <option value="dark_oak">짙은 참나무 판자</option>
+              <option value="bookshelf">책장</option>
+            </select>
+          </div>
+          <p class="helper">책상을 끄면 다리까지 보여요.</p>
+          <div class="field inline">
+            <label class="check"><input type="checkbox" id="kb" checked> 키보드</label>
+            <label class="visually-hidden" for="kbTheme">키보드 색</label>
+            <select class="select select-sm" id="kbTheme">
+              <option value="white">화이트</option>
+              <option value="black">블랙</option>
+              <option value="pink">핑크</option>
+              <option value="mint">민트</option>
+            </select>
+          </div>
         </div>
-        <p class="helper">책상을 끄면 다리까지 보여요.</p>
-        <div class="field inline">
-          <label class="check"><input type="checkbox" id="kb" checked> 키보드</label>
-          <label class="visually-hidden" for="kbTheme">키보드 색</label>
-          <select class="select select-sm" id="kbTheme">
-            <option value="white">화이트</option>
-            <option value="black">블랙</option>
-            <option value="pink">핑크</option>
-            <option value="mint">민트</option>
-          </select>
+        <div data-scenes="tree" class="prop-group">
+          <div class="field">
+            <label class="field-label" for="logKind">나무 종류</label>
+            <select class="select" id="logKind">
+              <option value="oak">참나무</option>
+              <option value="birch">자작나무</option>
+              <option value="spruce">가문비나무</option>
+              <option value="dark_oak">짙은 참나무</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="axeKind">도끼</label>
+            <select class="select" id="axeKind">
+              <option value="wood">나무 도끼</option>
+              <option value="stone">돌 도끼</option>
+              <option value="iron">철 도끼</option>
+              <option value="gold">금 도끼</option>
+              <option value="diamond" selected>다이아몬드 도끼</option>
+            </select>
+          </div>
         </div>
+        <div data-scenes="button" class="prop-group">
+          <div class="field">
+            <label class="field-label" for="blockKind">받침 블록</label>
+            <select class="select" id="blockKind">
+              <option value="stone_bricks">석재 벽돌</option>
+              <option value="stone">돌</option>
+              <option value="oak">참나무 판자</option>
+              <option value="birch">자작나무 판자</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="buttonKind">버튼</label>
+            <select class="select" id="buttonKind">
+              <option value="oak">참나무 버튼</option>
+              <option value="stone">돌 버튼</option>
+              <option value="birch">자작나무 버튼</option>
+              <option value="spruce">가문비나무 버튼</option>
+            </select>
+          </div>
+        </div>
+        <p data-scenes="crafting" class="helper">제작대는 따로 고를 것이 없어요.</p>
       </fieldset>
 
       <fieldset>

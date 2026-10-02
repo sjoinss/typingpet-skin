@@ -62,145 +62,158 @@ function makeXf(pivot, rx = 0, ry = 0, rz = 0) {
   return p => add(pivot, rotZ(rotY(rotX(sub(p, pivot), rx), ry), rz));
 }
 
-/* ---------- textures for props ---------- */
-const solidCache = {};
-function solid(color) {
-  if (!solidCache[color]) {
-    const c = document.createElement('canvas'); c.width = c.height = 1;
-    const x = c.getContext('2d'); x.fillStyle = color; x.fillRect(0, 0, 1, 1);
-    solidCache[color] = c;
-  }
-  return solidCache[color];
-}
-const KB_THEMES = {
-  white: { frame: '#cfd2d8', key: '#fbfbfc', keyEdge: '#dfe1e6' },
-  black: { frame: '#24262b', key: '#45484f', keyEdge: '#33363c' },
-  pink:  { frame: '#f2b6c8', key: '#fff1f5', keyEdge: '#f6d3de' },
-  mint:  { frame: '#9fd8c4', key: '#effaf6', keyEdge: '#cdeee2' },
-};
-const kbCache = {};
-function kbTexture(theme) {
-  if (kbCache[theme]) return kbCache[theme];
-  const t = KB_THEMES[theme], c = document.createElement('canvas');
-  c.width = 66; c.height = 24;
-  const x = c.getContext('2d');
-  x.fillStyle = t.frame; x.fillRect(0, 0, 66, 24);
-  const key = (kx, ky, kw) => { x.fillStyle = t.key; x.fillRect(kx, ky, kw, 4); x.fillStyle = t.keyEdge; x.fillRect(kx, ky + 3, kw, 1); };
-  for (let r = 0; r < 3; r++) for (let i = 0; i < 12; i++) key(2 + i * 5 + (r % 2 ? 2 : 0), 2 + r * 5, 4);
-  key(2, 17, 6); key(9, 17, 6); key(16, 17, 34); key(51, 17, 6); key(58, 17, 6);
-  return (kbCache[theme] = c);
-}
+/* ---------- 장면 ---------- */
+const T = window.PetTextures;
+const scale = (p, k) => [p[0] * k, p[1] * k, p[2] * k];
+// 상자: { min, max, uv(스킨 위치) | faceTex(면별 텍스처), src(기본 텍스처), xf(점 변환), overlay, head }
 
-/* 책상: 마인크래프트 판자·책장 텍스처를 1단위 = 1텍셀(스킨과 같은 밀도, 블록 = 16텍셀)로 만든다 */
-const WOODS = {
-  oak:      { shades: ['#b8945f', '#af8c58', '#a5834f', '#c29d62'], seam: '#7d6239', split: '#94764a' },
-  spruce:   { shades: ['#7a5a34', '#72532f', '#684b2a', '#82603a'], seam: '#3f2c17', split: '#5a4126' },
-  birch:    { shades: ['#d7c185', '#cbb67a', '#c4ae72', '#dfca8e'], seam: '#9a8654', split: '#b39f68' },
-  dark_oak: { shades: ['#4f3218', '#4a2f16', '#432a13', '#55371b'], seam: '#26170a', split: '#3a2510' },
-};
-const BOOKS = ['#7b2e24', '#2f4c7d', '#3e6c30', '#8c6a28', '#5c2f6e', '#a4462f', '#2e6b67', '#6e6e72'];
-const hash = (x, y, s = 0) => {
-  let h = (x * 374761393 + y * 668265263 + s * 1442695041) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return (h ^ (h >>> 16)) >>> 0;
-};
-function plankPixel(pal, x, y) {
-  const yy = ((y % 16) + 16) % 16, xx = ((x % 16) + 16) % 16, row = yy >> 2;
-  const block = Math.floor(x / 16) + Math.floor(y / 16) * 7;
-  if ((yy & 3) === 3) return pal.seam;                                   // 판자 사이 가로 줄
-  if (xx === (([5, 12, 2, 9][row] + block * 5) % 16)) return pal.split;  // 판자 이음매
-  return pal.shades[hash(x, y, block) % pal.shades.length];
-}
-const woodCache = {};
-function woodCanvas(kind, face, tw, th) {
-  const key = [kind, face, tw, th].join();
-  if (woodCache[key]) return woodCache[key];
-  const c = document.createElement('canvas'); c.width = tw; c.height = th;
-  const x = c.getContext('2d');
-  const shelf = kind === 'bookshelf';
-  const pal = WOODS[shelf ? 'oak' : kind];
-  const put = (px, py, color) => { x.fillStyle = color; x.fillRect(px, py, 1, 1); };
-  for (let py = 0; py < th; py++) for (let px = 0; px < tw; px++) put(px, py, plankPixel(pal, px, py));
-  if (shelf && face === 'side') {
-    // 위아래 한 줄은 판자 선반, 사이에 책을 꽂는다
-    const top = 1, bottom = th - 1;
-    for (let py = top; py < bottom; py++) for (let px = 0; px < tw; px++) put(px, py, '#3b2a17');
-    let px = 0, n = 0;
-    while (px < tw) {
-      const bw = 1 + (hash(n, 1, 9) % 2), color = BOOKS[hash(n, 2, 9) % BOOKS.length];
-      const short = hash(n, 3, 9) % 3 === 0 ? 1 : 0;
-      for (let i = 0; i < bw && px + i < tw; i++) for (let py = top + short; py < bottom; py++) {
-        const band = hash(n, 5, 9) % 3 === 0 && py === top + short + Math.floor((bottom - top - short) * 0.4);
-        put(px + i, py, band ? '#e8d9a8' : color);
-      }
-      px += bw + (hash(n, 4, 9) % 5 === 0 ? 1 : 0);
-      n++;
-    }
-  }
-  return (woodCache[key] = c);
-}
-function deskFaceTex(kind, w, h, d) {
-  const dims = { top: [w, d], bottom: [w, d], front: [w, h], back: [w, h], right: [d, h], left: [d, h] };
-  const out = {};
-  for (const [f, [a, b]] of Object.entries(dims)) {
-    const tw = Math.max(1, Math.round(a)), th = Math.max(1, Math.round(b));
-    out[f] = { img: woodCanvas(kind, f === 'top' || f === 'bottom' ? 'top' : 'side', tw, th), r: [0, 0, tw, th] };
-  }
-  return out;
-}
-
-/* ---------- scene ---------- */
-// box: { min, max, uv:[u,v,w,h,d] | null, src, faceTex:{face:{img,r}}, xf, overlay }
-function skinBoxes(min, max, uvBase, uvOv, inf, xf, o) {
-  const out = [{ min, max, uv: uvBase, src: skin.canvas, k: skin.k, xf }];
+function skinBoxes(min, max, uvBase, uvOv, inf, xf, o, extra = {}) {
+  const out = [{ min, max, uv: uvBase, src: skin.canvas, k: skin.k, xf, ...extra }];
   if (o.overlay) out.push({
     min: min.map(v => v - inf), max: max.map(v => v + inf), uv: [uvOv[0], uvOv[1], ...uvBase.slice(2)],
-    src: skin.canvas, k: skin.k, xf, overlay: true,
+    src: skin.canvas, k: skin.k, xf, overlay: true, ...extra,
   });
   return out;
 }
 
-function poseParams(which, o) {
-  const down = -70 * DEG, up = -o.raise * DEG;
-  const p = { vl: down, vr: down, rzl: 0, rzr: 0, roll: 0 };
+/** 이번 모습에서 움직이는 손: 'L'(화면 왼쪽) · 'R' · null. 왼손↔오른손 바꾸기 반영 */
+function activeSide(which, o) {
   let side = which === 'left' ? 'L' : which === 'right' ? 'R' : null;
   if (side && o.swap) side = side === 'L' ? 'R' : 'L';
-  if (side === 'L') { p.vl = up; p.rzl = o.spread * DEG; p.roll = o.headTilt ? 6 * DEG : 0; }
-  if (side === 'R') { p.vr = up; p.rzr = -o.spread * DEG; p.roll = o.headTilt ? -6 * DEG : 0; }
-  return p;
+  return side;
+}
+function headFor(side, o) {
+  const tilt = o.headTilt ? 6 * DEG : 0;
+  return { rx: o.headPitch * DEG, rz: side === 'L' ? tilt : side === 'R' ? -tilt : 0 };
 }
 
-// 장면의 상자 목록 (앞뒤 가림은 깊이 버퍼가 처리하므로 순서는 상관없다)
-function buildScene(which, o) {
-  const p = poseParams(which, o);
+/**
+ * 캐릭터 상자들. 화면 왼쪽 팔(L) = 캐릭터의 오른팔.
+ * arms: { L: {rx, rz}, R: {rx, rz} } (라디안, 팔을 내린 상태가 0), head: { rx, ry, rz }
+ */
+function character(o, { arms, head, legs = true }) {
   const slim = o.model === 'slim' || (o.model === 'auto' && skin.slim);
   const aw = slim ? 3 : 4;
-  const parts = [];
-
-  if (!o.desk) {
-    parts.push(...skinBoxes([-4, 0, -2], [0, 12, 2], [0, 16, 4, 12, 4], [0, 32], .25, IDENT, o));
-    parts.push(...skinBoxes([0, 0, -2], [4, 12, 2], [16, 48, 4, 12, 4], [0, 48], .25, IDENT, o));
+  const boxes = [];
+  if (legs) {
+    boxes.push(...skinBoxes([-4, 0, -2], [0, 12, 2], [0, 16, 4, 12, 4], [0, 32], .25, IDENT, o));
+    boxes.push(...skinBoxes([0, 0, -2], [4, 12, 2], [16, 48, 4, 12, 4], [0, 48], .25, IDENT, o));
   }
-  parts.push(...skinBoxes([-4, 12, -2], [4, 24, 2], [16, 16, 8, 12, 4], [16, 32], .25, IDENT, o));
-  parts.push(...skinBoxes([-4, 24, -4], [4, 32, 4], [0, 0, 8, 8, 8], [32, 0], .5,
-    makeXf([0, 24, 0], o.headPitch * DEG, 0, p.roll), o));
+  boxes.push(...skinBoxes([-4, 12, -2], [4, 24, 2], [16, 16, 8, 12, 4], [16, 32], .25, IDENT, o));
+  boxes.push(...skinBoxes([-4, 24, -4], [4, 32, 4], [0, 0, 8, 8, 8], [32, 0], .5,
+    makeXf([0, 24, 0], head.rx || 0, head.ry || 0, head.rz || 0), o, { head: true }));
+  const armXf = {
+    L: makeXf([-5, 22, 0], arms.L.rx, 0, arms.L.rz),
+    R: makeXf([5, 22, 0], arms.R.rx, 0, arms.R.rz),
+  };
+  boxes.push(...skinBoxes([-4 - aw, 12, -2], [-4, 24, 2], [40, 16, aw, 12, 4], [40, 32], .25, armXf.L, o));
+  boxes.push(...skinBoxes([4, 12, -2], [4 + aw, 24, 2], [32, 48, aw, 12, 4], [48, 48], .25, armXf.R, o));
+  return { boxes, armXf, armX: { L: -4 - aw / 2, R: 4 + aw / 2 } };
+}
 
-  if (o.desk) {
-    const min = [-16, 8.5, 3], max = [16, 14.5, 16];
-    parts.push({ min, max, xf: IDENT, faceTex: deskFaceTex(o.deskWood, max[0] - min[0], max[1] - min[1], max[2] - min[2]) });
-  }
-  if (o.kb) {
-    const t = KB_THEMES[o.kbTheme];
-    parts.push({ min: [-11, 14.5, 5.5], max: [11, 16, 13.5], src: solid(t.frame), xf: IDENT,
-      faceTex: { top: { img: kbTexture(o.kbTheme), r: [0, 0, 66, 24] } } });
-  }
+const size = (min, max) => [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
+const prop = (min, max, faceTex, src = T.clear()) => ({ min, max, faceTex, src, xf: IDENT });
 
-  // arms: viewer-left = character's right arm
-  const armL = skinBoxes([-4 - aw, 12, -2], [-4, 24, 2], [40, 16, aw, 12, 4], [40, 32], .25,
-    makeXf([-5, 22, 0], p.vl, 0, p.rzl), o);
-  const armR = skinBoxes([4, 12, -2], [4 + aw, 24, 2], [32, 48, aw, 12, 4], [48, 48], .25,
-    makeXf([5, 22, 0], p.vr, 0, p.rzr), o);
-  return [...parts, ...armL, ...armR];
+/** 16×16 아이템 그림을 손에 쥔다. 그림은 팔이 뻗는 방향으로 이어지고, 납작한 면이 팔이 휘두르는 면과 같다 */
+function heldAxe(kind, armXf, handX, mirrored) {
+  const [gu, gv] = T.AXE_GRIP;
+  const gx = mirrored ? 16 - gu : gu;
+  const ang = (mirrored ? 135 : -135) * DEG; // 손잡이→도끼날 대각선을 팔 방향(-y)에 맞춘다
+  const grip = [handX, 12.5, 0];
+  return {
+    min: [-gx, gv - 16, -0.5], max: [16 - gx, gv, 0.5], src: T.clear(),
+    xf: p => armXf(add(grip, rotZ(p, ang))),
+    faceTex: {
+      front: { img: T.axeSprite(kind, mirrored), r: [0, 0, 16, 16] },
+      back: { img: T.axeSprite(kind, !mirrored), r: [0, 0, 16, 16] },
+    },
+  };
+}
+
+const DOWN = -70 * DEG; // 손이 키보드·제작대 위에 닿는 각도
+
+/** 손을 번갈아 드는 기본 자세 (책상·제작대) */
+function typingArms(which, o) {
+  const side = activeSide(which, o), up = -o.raise * DEG, sp = o.spread * DEG;
+  const arm = s => side === s ? { rx: up, rz: (s === 'L' ? 1 : -1) * sp } : { rx: DOWN, rz: 0 };
+  return { side, arms: { L: arm('L'), R: arm('R') } };
+}
+
+const SCENES = {
+  desk(which, o) {
+    const { side, arms } = typingArms(which, o);
+    const out = character(o, { arms, head: headFor(side, o), legs: !o.desk }).boxes;
+    if (o.desk) {
+      const min = [-16, 8.5, 3], max = [16, 14.5, 16];
+      out.push(prop(min, max, T.deskFaces(o.deskWood, ...size(min, max))));
+    }
+    if (o.kb) out.push({
+      min: [-11, 14.5, 5.5], max: [11, 16, 13.5], src: T.solid(T.KB_THEMES[o.kbTheme].frame), xf: IDENT,
+      faceTex: { top: { img: T.keyboardTop(o.kbTheme), r: [0, 0, 66, 24] } },
+    });
+    return out;
+  },
+
+  crafting(which, o) {
+    const { side, arms } = typingArms(which, o);
+    const out = character(o, { arms, head: headFor(side, o) }).boxes;
+    out.push(prop([-8, 0, 3], [8, 16, 19], T.craftingFaces(16, 16, 16)));
+    return out;
+  },
+
+  button(which, o) {
+    // 평소엔 두 손이 버튼 위에 떠 있고, 누르는 손만 내려간다
+    const side = activeSide(which, o), HOVER = -86 * DEG, PRESS = -74 * DEG;
+    const arm = s => ({ rx: side === s ? PRESS : HOVER, rz: 0 });
+    const head = headFor(side, o);
+    head.rx += 6 * DEG;
+    const ch = character(o, { arms: { L: arm('L'), R: arm('R') }, head });
+    const out = ch.boxes;
+    out.push(prop([-16, 0, 3], [16, 16, 19], T.blockFaces(o.blockKind, 32, 16, 16)));
+    for (const s of ['L', 'R']) {
+      const cx = ch.armX[s], h = side === s ? 1 : 2;
+      out.push(prop([cx - 3, 16, 6.5], [cx + 3, 16 + h, 10.5], T.buttonFaces(o.buttonKind, 6, h, 4)));
+    }
+    return out;
+  },
+
+  tree(which, o) {
+    // 기본 = 도끼 들고 서 있기, 왼손 칸 = 치켜들기, 오른손 칸 = 내려찍기 (번갈아 바뀌면 나무를 찍는다)
+    const m = o.swap ? -1 : 1;              // 나무가 있는 쪽 (+1 = 화면 오른쪽)
+    const axeSide = m > 0 ? 'R' : 'L', free = m > 0 ? 'L' : 'R';
+    const swing = {
+      idle: { rx: -15 * DEG, rz: m * 12 * DEG },
+      left: { rx: -20 * DEG, rz: m * o.raise * DEG },
+      right: { rx: -10 * DEG, rz: m * 70 * DEG },
+    }[which];
+    const arms = { [axeSide]: swing, [free]: { rx: -8 * DEG, rz: -m * 5 * DEG } };
+    const head = { rx: o.headPitch * DEG * 0.5, ry: m * 35 * DEG, rz: o.headTilt && which === 'left' ? -m * 5 * DEG : 0 };
+    const ch = character(o, { arms, head });
+    const out = ch.boxes;
+    out.push(heldAxe(o.axeKind, ch.armXf[axeSide], ch.armX[axeSide], m > 0));
+    const x0 = m > 0 ? 24 : -40;
+    out.push(prop([x0, 0, -8], [x0 + 16, 32, 8], T.logFaces(o.logKind, 16, 32, 16, which === 'right')));
+    if (which === 'right') {
+      // 찍는 순간 튀는 나무 조각
+      const chip = T.solid(T.logChipColor(o.logKind)), ix = m * 22.5;
+      for (const [dx, dy, dz] of [[-1, 3, 3], [-2.5, -1, -3], [-3.5, 5, -1], [-1.5, 1, 5]])
+        out.push({ min: [ix + m * dx - .6, 17 + dy - .6, dz - .6], max: [ix + m * dx + .6, 17 + dy + .6, dz + .6], src: chip, xf: IDENT });
+    }
+    return out;
+  },
+};
+
+/** 장면의 상자 목록 (앞뒤 가림은 깊이 버퍼가 처리하므로 순서는 상관없다) */
+function buildScene(which, o) {
+  const boxes = (SCENES[o.scene] || SCENES.desk)(which, o);
+  // 머리·몸 크기: 몸(과 소품)은 발밑 기준으로, 머리는 목 기준으로 키우고 줄인다 → 손은 계속 소품에 닿는다
+  const kb = o.bodyScale / 100, kh = o.headScale / 100;
+  if (kb === 1 && kh === 1) return boxes;
+  const neck = [0, 24, 0], neckScaled = [0, 24 * kb, 0];
+  return boxes.map(b => {
+    const xf = b.xf;
+    return { ...b, xf: b.head ? p => add(neckScaled, scale(sub(xf(p), neck), kh)) : p => scale(xf(p), kb) };
+  });
 }
 
 function camP(p, o) { return rotX(rotY(p, o.yaw * DEG), o.pitch * DEG); }
