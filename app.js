@@ -6,7 +6,7 @@
 const { W, H, normalizeSkin, renderPoses } = window.PetRenderer;
 const $ = id => document.getElementById(id);
 
-/** Typing Pet의 이미지 칸 세 개 */
+/** 기본·왼손·오른손 이미지 세 장 */
 const POSES = [
   { id: 'idle',  label: '기본',   file: 'default.png' },
   { id: 'left',  label: '왼손',   file: 'left_hand.png' },
@@ -261,11 +261,11 @@ function showPose(id, dy = 0) {
   shownPose = id;
   pctx.clearRect(0, 0, W, H);
   if (rendered) pctx.drawImage(rendered[id], 0, reduceMotion.matches ? 0 : dy);
-  preview.setAttribute('aria-label', `Typing Pet 미리보기: ${poseLabel(id)} — ${SCENE_INFO[currentScene()].notes[id]}`);
+  preview.setAttribute('aria-label', `미리보기: ${poseLabel(id)} — ${SCENE_INFO[currentScene()].notes[id]}`);
 }
 function selectedPose() { return document.querySelector('input[name="pose"]:checked').value; }
 
-// Typing Pet처럼: 키를 누를 때마다 왼손·오른손 모습이 번갈아 나오고, 잠시 멈추면 고른 모습으로 돌아온다
+// 키를 누를 때마다 왼손·오른손 모습이 번갈아 나오고, 잠시 멈추면 고른 모습으로 돌아온다
 let nextHand = 'left', restTimer = 0, bounceTimer = 0;
 function tap() {
   if (!rendered || playing) return;
@@ -378,7 +378,7 @@ function saveBlob(blob, filename) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-const safeName = () => (skin?.name || 'typingpet').replace(/[^\w-]/g, '_');
+const safeName = () => (skin?.name || 'typing').replace(/[^\w-]/g, '_');
 
 $('results').addEventListener('click', async e => {
   const btn = e.target.closest('[data-download]');
@@ -396,7 +396,7 @@ $('zip-btn').addEventListener('click', async () => {
   try {
     const files = [];
     for (const p of POSES) files.push({ name: p.file, data: await toPngBytes(rendered[p.id]) });
-    saveBlob(makeZip(files), `${safeName()}_typingpet.zip`);
+    saveBlob(makeZip(files), `${safeName()}_typing.zip`);
     setStatus('3장을 ZIP으로 내려받았어요.', 'success');
   } finally {
     btn.disabled = false; btn.removeAttribute('aria-busy');

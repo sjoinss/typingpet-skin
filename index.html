@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="마인크래프트 스킨으로 Typing Pet용 기본·왼손·오른손 이미지를 자동으로 만들어 줍니다.">
-<title>TypingPet 스킨 이미지 생성기</title>
+<meta name="description" content="마인크래프트 스킨으로 타이핑할 때 번갈아 보이는 기본·왼손·오른손 이미지를 만들어 줍니다.">
+<title>타이핑 이미지 만들기</title>
 <link rel="stylesheet" href="styles.css">
 <script src="textures.js" defer></script>
 <script src="render.js" defer></script>
@@ -16,8 +16,8 @@
 
 <header class="site-header">
   <div class="container">
-    <h1 class="page-title">TypingPet 스킨 이미지 생성기</h1>
-    <p class="page-desc">마인크래프트 스킨으로 <a href="https://github.com/swoonqx/TypingPet" target="_blank" rel="noopener">Typing Pet</a>에 넣을 <strong>기본 · 왼손 · 오른손</strong> 이미지(800×500 투명 PNG)와 움직이는 GIF를 만들어요.</p>
+    <h1 class="page-title">타이핑 이미지 만들기</h1>
+    <p class="page-desc">마인크래프트 스킨으로 타이핑할 때 번갈아 보이는 <strong>기본 · 왼손 · 오른손</strong> 이미지(800×500 투명 PNG)와 움직이는 GIF를 만들어요. <a href="https://github.com/swoonqx/TypingPet" target="_blank" rel="noopener">Typing Pet</a>에 넣어 쓸 수 있어요.</p>
   </div>
 </header>
 
@@ -92,13 +92,13 @@
     </div>
 
     <figure class="stage" id="stage">
-      <canvas id="preview" width="800" height="500" role="img" aria-label="Typing Pet 미리보기: 기본"></canvas>
+      <canvas id="preview" width="800" height="500" role="img" aria-label="미리보기: 기본"></canvas>
       <div class="empty-state" id="empty-state">
         <p class="empty-title">아직 스킨이 없어요</p>
         <p class="helper">아이디를 입력하거나 스킨 파일을 올리면 여기에 캐릭터가 나타나요.</p>
         <button class="btn btn-secondary" type="button" id="example-btn">예시 스킨으로 먼저 해보기</button>
       </div>
-      <figcaption class="stage-caption" id="stage-caption">키보드를 눌러 보세요 — Typing Pet처럼 모습이 번갈아 바뀌어요.</figcaption>
+      <figcaption class="stage-caption" id="stage-caption">키보드를 눌러 보세요 — 누를 때마다 모습이 번갈아 바뀌어요.</figcaption>
     </figure>
 
     <div class="preview-tools">
@@ -147,7 +147,7 @@
     </fieldset>
 
     <details class="howto">
-      <summary>Typing Pet에 넣는 방법</summary>
+      <summary>만든 이미지 넣는 방법</summary>
       <ol>
         <li>Typing Pet 트레이 아이콘 → <strong>설정</strong> → <strong>이미지 설정</strong>을 열어요.</li>
         <li><strong>기본 / 왼손 / 오른손</strong>의 <em>이미지 변경</em>에서 받은 PNG 파일을 각각 골라요.</li>

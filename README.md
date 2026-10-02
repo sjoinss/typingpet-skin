@@ -1,6 +1,6 @@
-# TypingPet 스킨 이미지 생성기
+# 타이핑 이미지 만들기
 
-마인크래프트 스킨으로 [Typing Pet](https://github.com/swoonqx/TypingPet)용 **기본 / 왼손 / 오른손** 이미지(800×500 투명 PNG)를 만들어 주는 사이트입니다.
+마인크래프트 스킨으로 타이핑할 때 번갈아 보이는 **기본 / 왼손 / 오른손** 이미지(800×500 투명 PNG)를 만들어 주는 사이트입니다. [Typing Pet](https://github.com/swoonqx/TypingPet)에 넣어 쓸 수 있습니다.
 
 - 마인크래프트 아이디로 스킨 불러오기 (minotar.net → mc-heads.net) 또는 PNG 파일 업로드
 - 상호작용 고르기: 책상과 키보드 / 나무 캐기 / 버튼 누르기 / 제작대로 조합하기
