@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="마인크래프트 스킨으로 Typing Pet용 기본·왼손·오른손 이미지를 자동으로 만들어 줍니다.">
+<title>TypingPet 스킨 이미지 생성기</title>
+<link rel="stylesheet" href="styles.css">
+<script src="render.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#preview-section">미리보기로 건너뛰기</a>
+
+<header class="site-header">
+  <div class="container">
+    <h1 class="page-title">TypingPet 스킨 이미지 생성기</h1>
+    <p class="page-desc">마인크래프트 스킨으로 <a href="https://github.com/swoonqx/TypingPet" target="_blank" rel="noopener">Typing Pet</a>에 넣을 <strong>기본 · 왼손 · 오른손</strong> 이미지(800×500 투명 PNG)를 만들어요.</p>
+  </div>
+</header>
+
+<main class="container layout">
+  <!-- 1. 스킨 불러오기 (가장 먼저 할 일) -->
+  <section class="panel area-skin" aria-labelledby="skin-title">
+    <h2 class="section-title" id="skin-title"><span class="step" aria-hidden="true">1</span>스킨 불러오기</h2>
+
+    <form class="name-form" id="name-form" novalidate>
+      <label class="field-label" for="name-input">마인크래프트 아이디</label>
+      <div class="input-row">
+        <input class="input" type="text" id="name-input" name="name" autocomplete="off" spellcheck="false"
+               maxlength="16" aria-describedby="name-help name-error" inputmode="latin">
+        <button class="btn btn-primary" type="submit" id="load-btn">불러오기</button>
+      </div>
+      <p class="helper" id="name-help">영문·숫자·밑줄(_) 3~16자. 정품 계정의 스킨을 가져와요.</p>
+      <p class="error-text" id="name-error" hidden></p>
+    </form>
+
+    <div class="divider" role="separator"><span>또는</span></div>
+
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept="image/png" class="visually-hidden">
+      <span class="dropzone-title">스킨 PNG 파일 선택</span>
+      <span class="helper">여기에 끌어다 놓아도 돼요 · 64×64 또는 64×32</span>
+    </label>
+
+    <div class="skin-info" id="skin-info" hidden>
+      <canvas id="skin-thumb" width="64" height="64" role="img" aria-label="불러온 스킨 텍스처"></canvas>
+      <div>
+        <p class="skin-name" id="skin-name"></p>
+        <p class="helper" id="skin-model"></p>
+      </div>
+    </div>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- 2. 미리보기 + 내려받기 (핵심 결과) -->
+  <section class="panel area-preview" id="preview-section" aria-labelledby="preview-title" tabindex="-1">
+    <div class="section-head">
+      <h2 class="section-title" id="preview-title"><span class="step" aria-hidden="true">2</span>미리보기</h2>
+      <div class="segmented" role="radiogroup" aria-label="미리볼 모습">
+        <label><input type="radio" name="pose" value="idle" checked><span>기본</span></label>
+        <label><input type="radio" name="pose" value="left"><span>왼손</span></label>
+        <label><input type="radio" name="pose" value="right"><span>오른손</span></label>
+      </div>
+    </div>
+
+    <figure class="stage" id="stage">
+      <canvas id="preview" width="800" height="500" role="img" aria-label="Typing Pet 미리보기: 기본"></canvas>
+      <div class="empty-state" id="empty-state">
+        <p class="empty-title">아직 스킨이 없어요</p>
+        <p class="helper">아이디를 입력하거나 스킨 파일을 올리면 여기에 캐릭터가 나타나요.</p>
+        <button class="btn btn-secondary" type="button" id="example-btn">예시 스킨으로 먼저 해보기</button>
+      </div>
+      <figcaption class="stage-caption" id="stage-caption">키보드를 눌러 보세요 — Typing Pet처럼 손을 번갈아 들어요.</figcaption>
+    </figure>
+
+    <div class="preview-tools">
+      <label class="check"><input type="checkbox" id="autoplay"> 자동 타이핑</label>
+      <label class="check"><input type="checkbox" id="bounce" checked> 통통 튀기</label>
+    </div>
+
+    <h3 class="subheading">내려받기</h3>
+    <ul class="results" id="results"></ul>
+    <div class="download-all">
+      <button class="btn btn-primary btn-wide" type="button" id="zip-btn" disabled aria-describedby="zip-help">3장 한 번에 받기 (ZIP)</button>
+      <p class="helper" id="zip-help">스킨을 불러오면 받을 수 있어요.</p>
+    </div>
+    <details class="howto">
+      <summary>Typing Pet에 넣는 방법</summary>
+      <ol>
+        <li>Typing Pet 트레이 아이콘 → <strong>설정</strong> → <strong>이미지 설정</strong>을 열어요.</li>
+        <li><strong>기본 / 왼손 / 오른손</strong>의 <em>이미지 변경</em>에서 받은 파일을 각각 골라요.</li>
+        <li>세 장은 같은 캔버스·같은 위치 기준이라 자연스럽게 바뀌어요.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- 3. 모양 조절 (선택) -->
+  <section class="panel area-options" aria-labelledby="options-title">
+    <h2 class="section-title" id="options-title"><span class="step" aria-hidden="true">3</span>모양 조절 <span class="optional">선택</span></h2>
+    <form id="options" class="options">
+      <fieldset>
+        <legend>캐릭터</legend>
+        <div class="field">
+          <label class="field-label" for="model">팔 두께</label>
+          <select class="select" id="model">
+            <option value="auto">자동 감지</option>
+            <option value="classic">클래식 (Steve, 4px)</option>
+            <option value="slim">슬림 (Alex, 3px)</option>
+          </select>
+        </div>
+        <label class="check"><input type="checkbox" id="overlay" checked> 2번째 레이어(모자·겉옷) 표시</label>
+        <label class="check"><input type="checkbox" id="headTilt" checked> 손을 들 때 고개 기울이기</label>
+        <label class="check"><input type="checkbox" id="swap"> 왼손 ↔ 오른손 바꾸기</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>자세</legend>
+        <div class="field range"><label class="field-label" for="raise">팔 드는 높이</label><output for="raise" id="raise-out"></output><input type="range" id="raise" min="100" max="180" value="145"></div>
+        <div class="field range"><label class="field-label" for="spread">팔 벌리기</label><output for="spread" id="spread-out"></output><input type="range" id="spread" min="0" max="35" value="12"></div>
+        <div class="field range"><label class="field-label" for="headPitch">고개 숙이기</label><output for="headPitch" id="headPitch-out"></output><input type="range" id="headPitch" min="-15" max="30" value="8"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>카메라</legend>
+        <div class="field range"><label class="field-label" for="yaw">좌우 각도</label><output for="yaw" id="yaw-out"></output><input type="range" id="yaw" min="-40" max="40" value="20"></div>
+        <div class="field range"><label class="field-label" for="pitch">내려다보는 각도</label><output for="pitch" id="pitch-out"></output><input type="range" id="pitch" min="0" max="40" value="16"></div>
+        <label class="check"><input type="checkbox" id="shade" checked> 입체 명암</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>소품</legend>
+        <div class="field inline">
+          <label class="check"><input type="checkbox" id="desk" checked> 책상</label>
+          <label class="color-field"><span>책상 색</span><input type="color" id="deskColor" value="#a8744a"></label>
+        </div>
+        <p class="helper">책상을 끄면 다리까지 보여요.</p>
+        <div class="field inline">
+          <label class="check"><input type="checkbox" id="kb" checked> 키보드</label>
+          <label class="visually-hidden" for="kbTheme">키보드 색</label>
+          <select class="select select-sm" id="kbTheme">
+            <option value="white">화이트</option>
+            <option value="black">블랙</option>
+            <option value="pink">핑크</option>
+            <option value="mint">민트</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>출력</legend>
+        <div class="field range"><label class="field-label" for="scale">크기</label><output for="scale" id="scale-out"></output><input type="range" id="scale" min="40" max="100" value="94"></div>
+        <div class="field">
+          <label class="field-label" for="valign">세로 위치</label>
+          <select class="select" id="valign">
+            <option value="bottom">아래에 맞춤</option>
+            <option value="center">가운데</option>
+          </select>
+        </div>
+        <div class="field range"><label class="field-label" for="outline">외곽선 두께</label><output for="outline" id="outline-out"></output><input type="range" id="outline" min="0" max="10" value="0"></div>
+        <label class="color-field"><span>외곽선 색</span><input type="color" id="outlineColor" value="#ffffff"></label>
+      </fieldset>
+
+      <button class="btn btn-ghost" type="reset">기본값으로 되돌리기</button>
+    </form>
+  </section>
+</main>
+
+<footer class="site-footer container">
+  <p>스킨은 아이디로 <a href="https://minotar.net" target="_blank" rel="noopener">minotar.net</a>(실패 시 mc-heads.net)에서 받아요. 이미지는 브라우저 안에서만 만들어지고 어디에도 올라가지 않아요.</p>
+</footer>
+</body>
+</html>
