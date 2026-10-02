@@ -133,7 +133,14 @@
         <legend>소품</legend>
         <div class="field inline">
           <label class="check"><input type="checkbox" id="desk" checked> 책상</label>
-          <label class="color-field"><span>책상 색</span><input type="color" id="deskColor" value="#a8744a"></label>
+          <label class="visually-hidden" for="deskWood">책상 재질</label>
+          <select class="select select-sm" id="deskWood">
+            <option value="oak">참나무 판자</option>
+            <option value="spruce">가문비나무 판자</option>
+            <option value="birch">자작나무 판자</option>
+            <option value="dark_oak">짙은 참나무 판자</option>
+            <option value="bookshelf">책장</option>
+          </select>
         </div>
         <p class="helper">책상을 끄면 다리까지 보여요.</p>
         <div class="field inline">

@@ -130,7 +130,7 @@ async function loadFile(file) {
 /* ---------- 옵션 ---------- */
 const RANGE_UNITS = { raise: '°', spread: '°', headPitch: '°', yaw: '°', pitch: '°', outline: 'px', scale: '%' };
 const CHECKS = ['overlay', 'headTilt', 'swap', 'shade', 'desk', 'kb'];
-const VALUES = ['model', 'kbTheme', 'valign', 'deskColor', 'outlineColor'];
+const VALUES = ['model', 'kbTheme', 'valign', 'deskWood', 'outlineColor'];
 
 function readOptions() {
   const o = {};
@@ -141,7 +141,7 @@ function readOptions() {
   for (const id of CHECKS) o[id] = $(id).checked;
   for (const id of VALUES) o[id] = $(id).value;
   $('kbTheme').disabled = !o.kb;
-  $('deskColor').disabled = !o.desk;
+  $('deskWood').disabled = !o.desk;
   return o;
 }
 

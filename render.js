@@ -91,6 +91,64 @@ function kbTexture(theme) {
   return (kbCache[theme] = c);
 }
 
+/* 책상: 마인크래프트 판자·책장 텍스처를 1단위 = 1텍셀(스킨과 같은 밀도, 블록 = 16텍셀)로 만든다 */
+const WOODS = {
+  oak:      { shades: ['#b8945f', '#af8c58', '#a5834f', '#c29d62'], seam: '#7d6239', split: '#94764a' },
+  spruce:   { shades: ['#7a5a34', '#72532f', '#684b2a', '#82603a'], seam: '#3f2c17', split: '#5a4126' },
+  birch:    { shades: ['#d7c185', '#cbb67a', '#c4ae72', '#dfca8e'], seam: '#9a8654', split: '#b39f68' },
+  dark_oak: { shades: ['#4f3218', '#4a2f16', '#432a13', '#55371b'], seam: '#26170a', split: '#3a2510' },
+};
+const BOOKS = ['#7b2e24', '#2f4c7d', '#3e6c30', '#8c6a28', '#5c2f6e', '#a4462f', '#2e6b67', '#6e6e72'];
+const hash = (x, y, s = 0) => {
+  let h = (x * 374761393 + y * 668265263 + s * 1442695041) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+};
+function plankPixel(pal, x, y) {
+  const yy = ((y % 16) + 16) % 16, xx = ((x % 16) + 16) % 16, row = yy >> 2;
+  const block = Math.floor(x / 16) + Math.floor(y / 16) * 7;
+  if ((yy & 3) === 3) return pal.seam;                                   // 판자 사이 가로 줄
+  if (xx === (([5, 12, 2, 9][row] + block * 5) % 16)) return pal.split;  // 판자 이음매
+  return pal.shades[hash(x, y, block) % pal.shades.length];
+}
+const woodCache = {};
+function woodCanvas(kind, face, tw, th) {
+  const key = [kind, face, tw, th].join();
+  if (woodCache[key]) return woodCache[key];
+  const c = document.createElement('canvas'); c.width = tw; c.height = th;
+  const x = c.getContext('2d');
+  const shelf = kind === 'bookshelf';
+  const pal = WOODS[shelf ? 'oak' : kind];
+  const put = (px, py, color) => { x.fillStyle = color; x.fillRect(px, py, 1, 1); };
+  for (let py = 0; py < th; py++) for (let px = 0; px < tw; px++) put(px, py, plankPixel(pal, px, py));
+  if (shelf && face === 'side') {
+    // 위아래 한 줄은 판자 선반, 사이에 책을 꽂는다
+    const top = 1, bottom = th - 1;
+    for (let py = top; py < bottom; py++) for (let px = 0; px < tw; px++) put(px, py, '#3b2a17');
+    let px = 0, n = 0;
+    while (px < tw) {
+      const bw = 1 + (hash(n, 1, 9) % 2), color = BOOKS[hash(n, 2, 9) % BOOKS.length];
+      const short = hash(n, 3, 9) % 3 === 0 ? 1 : 0;
+      for (let i = 0; i < bw && px + i < tw; i++) for (let py = top + short; py < bottom; py++) {
+        const band = hash(n, 5, 9) % 3 === 0 && py === top + short + Math.floor((bottom - top - short) * 0.4);
+        put(px + i, py, band ? '#e8d9a8' : color);
+      }
+      px += bw + (hash(n, 4, 9) % 5 === 0 ? 1 : 0);
+      n++;
+    }
+  }
+  return (woodCache[key] = c);
+}
+function deskFaceTex(kind, w, h, d) {
+  const dims = { top: [w, d], bottom: [w, d], front: [w, h], back: [w, h], right: [d, h], left: [d, h] };
+  const out = {};
+  for (const [f, [a, b]] of Object.entries(dims)) {
+    const tw = Math.max(1, Math.round(a)), th = Math.max(1, Math.round(b));
+    out[f] = { img: woodCanvas(kind, f === 'top' || f === 'bottom' ? 'top' : 'side', tw, th), r: [0, 0, tw, th] };
+  }
+  return out;
+}
+
 /* ---------- scene ---------- */
 // box: { min, max, uv:[u,v,w,h,d] | null, src, faceTex:{face:{img,r}}, xf, overlay }
 function skinBoxes(min, max, uvBase, uvOv, inf, xf, o) {
@@ -112,28 +170,28 @@ function poseParams(which, o) {
   return p;
 }
 
-// returns boxes in draw order (back to front)
+// 장면의 상자 목록 (앞뒤 가림은 깊이 버퍼가 처리하므로 순서는 상관없다)
 function buildScene(which, o) {
   const p = poseParams(which, o);
   const slim = o.model === 'slim' || (o.model === 'auto' && skin.slim);
   const aw = slim ? 3 : 4;
-  const back = [], front = [];
+  const parts = [];
 
   if (!o.desk) {
-    back.push(...skinBoxes([-4, 0, -2], [0, 12, 2], [0, 16, 4, 12, 4], [0, 32], .25, IDENT, o));
-    back.push(...skinBoxes([0, 0, -2], [4, 12, 2], [16, 48, 4, 12, 4], [0, 48], .25, IDENT, o));
+    parts.push(...skinBoxes([-4, 0, -2], [0, 12, 2], [0, 16, 4, 12, 4], [0, 32], .25, IDENT, o));
+    parts.push(...skinBoxes([0, 0, -2], [4, 12, 2], [16, 48, 4, 12, 4], [0, 48], .25, IDENT, o));
   }
-  back.push(...skinBoxes([-4, 12, -2], [4, 24, 2], [16, 16, 8, 12, 4], [16, 32], .25, IDENT, o));
-  back.push(...skinBoxes([-4, 24, -4], [4, 32, 4], [0, 0, 8, 8, 8], [32, 0], .5,
+  parts.push(...skinBoxes([-4, 12, -2], [4, 24, 2], [16, 16, 8, 12, 4], [16, 32], .25, IDENT, o));
+  parts.push(...skinBoxes([-4, 24, -4], [4, 32, 4], [0, 0, 8, 8, 8], [32, 0], .5,
     makeXf([0, 24, 0], o.headPitch * DEG, 0, p.roll), o));
 
   if (o.desk) {
-    const c = o.deskColor;
-    back.push({ min: [-17, 9, 3], max: [17, 14.5, 16], src: solid(c), xf: IDENT });
+    const min = [-16, 8.5, 3], max = [16, 14.5, 16];
+    parts.push({ min, max, xf: IDENT, faceTex: deskFaceTex(o.deskWood, max[0] - min[0], max[1] - min[1], max[2] - min[2]) });
   }
   if (o.kb) {
     const t = KB_THEMES[o.kbTheme];
-    back.push({ min: [-11, 14.5, 5.5], max: [11, 16, 13.5], src: solid(t.frame), xf: IDENT,
+    parts.push({ min: [-11, 14.5, 5.5], max: [11, 16, 13.5], src: solid(t.frame), xf: IDENT,
       faceTex: { top: { img: kbTexture(o.kbTheme), r: [0, 0, 66, 24] } } });
   }
 
@@ -142,10 +200,7 @@ function buildScene(which, o) {
     makeXf([-5, 22, 0], p.vl, 0, p.rzl), o);
   const armR = skinBoxes([4, 12, -2], [4 + aw, 24, 2], [32, 48, aw, 12, 4], [48, 48], .25,
     makeXf([5, 22, 0], p.vr, 0, p.rzr), o);
-  const depth = boxes => camP(boxes[0].xf([boxes[0].min[0] + 2, 18, 0]), o)[2];
-  const arms = [armL, armR].sort((a, b) => depth(a) - depth(b));
-  front.push(...arms[0], ...arms[1]);
-  return back.concat(front);
+  return [...parts, ...armL, ...armR];
 }
 
 function camP(p, o) { return rotX(rotY(p, o.yaw * DEG), o.pitch * DEG); }
@@ -170,8 +225,6 @@ function computeFit(o) {
 }
 
 /* ---------- rasterizer ---------- */
-const tmp = document.createElement('canvas');
-const tctx = tmp.getContext('2d');
 const L = (() => { const v = [-0.45, 0.75, 0.55], n = Math.hypot(...v); return v.map(x => x / n); })();
 const FACE_DEF = (x0, y0, z0, x1, y1, z1) => {
   const w = x1 - x0, h = y1 - y0, d = z1 - z0;
@@ -196,41 +249,82 @@ function texRect(b, face) {
   return { img: b.src, r: r.map(x => x * k) };
 }
 
-function drawBox(ctx, b, o, fit) {
-  const grow = b.overlay ? 0.35 * SS : 0.6 * SS;
+/* 깊이 버퍼: 픽셀마다 카메라에 더 가까운 면만 남긴다.
+ * 상자를 통째로 덧그리면 각도를 틀었을 때 뒤쪽 팔이 몸통 위로 올라오므로 픽셀 단위로 가린다. */
+const BW = W * SS, BH = H * SS;
+const color32 = new Uint32Array(BW * BH);
+const depth = new Float32Array(BW * BH);
+const big = document.createElement('canvas'); big.width = BW; big.height = BH;
+const bigCtx = big.getContext('2d');
+const ALPHA_CUT = 128; // 겉옷 층처럼 반투명한 텍셀은 이 값 이상만 칠한다
+
+const texCache = new WeakMap();
+function texData(img) {
+  let t = texCache.get(img);
+  if (!t) {
+    t = { data: img.getContext('2d').getImageData(0, 0, img.width, img.height).data, w: img.width };
+    texCache.set(img, t);
+  }
+  return t;
+}
+
+/** 화면 위 평행사변형 O + a·U + b·V (a, b ∈ [0,1])를 텍스처 사각형으로 채운다. 깊이는 z0 + a·zu + b·zv */
+function rasterFace(O, U, V, z0, zu, zv, tex, r, shade) {
+  const det = U[0] * V[1] - U[1] * V[0];
+  if (Math.abs(det) < 1e-6) return;
+  const xs = [O[0], O[0] + U[0], O[0] + V[0], O[0] + U[0] + V[0]];
+  const ys = [O[1], O[1] + U[1], O[1] + V[1], O[1] + U[1] + V[1]];
+  const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 1), x1 = Math.min(BW - 1, Math.ceil(Math.max(...xs)) + 1);
+  const y0 = Math.max(0, Math.floor(Math.min(...ys)) - 1), y1 = Math.min(BH - 1, Math.ceil(Math.max(...ys)) + 1);
+  const ia0 = V[1] / det, ia1 = -V[0] / det, ib0 = -U[1] / det, ib1 = U[0] / det;
+  // 면 사이 틈이 생기지 않게 가장자리를 0.6픽셀씩 넓힌다 (겹치는 곳은 깊이가 정리한다)
+  const ea = 0.6 / Math.hypot(U[0], U[1]), eb = 0.6 / Math.hypot(V[0], V[1]);
+  const [sx, sy, sw, sh] = r, { data, w: tw } = tex;
+  for (let y = y0; y <= y1; y++) {
+    const py = y + 0.5 - O[1];
+    for (let x = x0; x <= x1; x++) {
+      const px = x + 0.5 - O[0];
+      const a = ia0 * px + ia1 * py;
+      if (a < -ea || a > 1 + ea) continue;
+      const b = ib0 * px + ib1 * py;
+      if (b < -eb || b > 1 + eb) continue;
+      const z = z0 + a * zu + b * zv, idx = y * BW + x;
+      if (z <= depth[idx]) continue;
+      const tx = sx + Math.min(sw - 1, Math.max(0, Math.floor(a * sw)));
+      const ty = sy + Math.min(sh - 1, Math.max(0, Math.floor(b * sh)));
+      const ti = (ty * tw + tx) * 4;
+      if (data[ti + 3] < ALPHA_CUT) continue;
+      color32[idx] = 0xff000000 | ((data[ti + 2] * shade) << 16) | ((data[ti + 1] * shade) << 8) | (data[ti] * shade);
+      depth[idx] = z;
+    }
+  }
+}
+
+function drawBox(b, o, fit) {
+  const s = fit.s * SS;
   for (const [name, tl, U, V] of FACE_DEF(...b.min, ...b.max)) {
     const P0 = camP(b.xf(tl), o), PU = camP(b.xf(add(tl, U)), o), PV = camP(b.xf(add(tl, V)), o);
     const u = sub(PU, P0), v = sub(PV, P0), n = cross(v, u);
-    if (n[2] <= 1e-7) continue;
+    // 겉옷 층은 게임처럼 양면으로 그린다 (모자 구멍 사이로 안쪽이 보이게)
+    if (n[2] <= 1e-7 && !b.overlay) continue;
     const { img, r } = texRect(b, name);
-    const [sx, sy, sw, sh] = r;
-    tmp.width = sw; tmp.height = sh;
-    tctx.imageSmoothingEnabled = false;
-    tctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    let shade = 1;
     if (o.shade) {
-      const nl = Math.hypot(...n), dot = Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / nl);
-      tctx.globalCompositeOperation = 'source-atop';
-      tctx.fillStyle = `rgba(0,0,0,${(0.36 * (1 - dot)).toFixed(3)})`;
-      tctx.fillRect(0, 0, sw, sh);
-      tctx.globalCompositeOperation = 'source-over';
+      const dot = Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / (Math.hypot(...n) || 1));
+      shade = 1 - 0.36 * (1 - dot);
     }
-    const s = fit.s * SS;
-    let Us = [u[0] * s, -u[1] * s], Vs = [v[0] * s, -v[1] * s];
-    let O = [(fit.ox + P0[0] * fit.s) * SS, (fit.oy - P0[1] * fit.s) * SS];
-    const lu = Math.hypot(...Us) || 1, lv = Math.hypot(...Vs) || 1;
-    const fu = (lu + grow) / lu, fv = (lv + grow) / lv;
-    O = [O[0] - Us[0] * (fu - 1) / 2 - Vs[0] * (fv - 1) / 2, O[1] - Us[1] * (fu - 1) / 2 - Vs[1] * (fv - 1) / 2];
-    Us = [Us[0] * fu, Us[1] * fu]; Vs = [Vs[0] * fv, Vs[1] * fv];
-    ctx.setTransform(Us[0] / sw, Us[1] / sw, Vs[0] / sh, Vs[1] / sh, O[0], O[1]);
-    ctx.drawImage(tmp, 0, 0);
+    rasterFace(
+      [(fit.ox + P0[0] * fit.s) * SS, (fit.oy - P0[1] * fit.s) * SS],
+      [u[0] * s, -u[1] * s], [v[0] * s, -v[1] * s],
+      P0[2], u[2], v[2], texData(img), r, shade);
   }
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function renderPose(which, o, fit) {
-  const big = document.createElement('canvas'); big.width = W * SS; big.height = H * SS;
-  const bctx = big.getContext('2d'); bctx.imageSmoothingEnabled = false;
-  for (const b of buildScene(which, o)) drawBox(bctx, b, o, fit);
+  color32.fill(0);
+  depth.fill(-Infinity);
+  for (const b of buildScene(which, o)) drawBox(b, o, fit);
+  bigCtx.putImageData(new ImageData(new Uint8ClampedArray(color32.buffer), BW, BH), 0, 0);
 
   let out = document.createElement('canvas'); out.width = W; out.height = H;
   const octx = out.getContext('2d');
@@ -253,7 +347,6 @@ function renderPose(which, o, fit) {
   }
   return out;
 }
-
 
 /** 세 모습을 렌더링해 { idle, left, right } 캔버스로 돌려준다 */
 function renderPoses(skinData, o) {
