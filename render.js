@@ -128,7 +128,7 @@ const SCENES = {
     const { side, arms } = typingArms(which, o);
     const out = character(o, { arms, head: headFor(side, o), legs: !o.desk }).boxes;
     if (o.desk) {
-      const min = [-16, 8.5, 3], max = [16, 14.5, 16];
+      const min = [-16, 6.5, 3], max = [16, 14.5, 16]; // 반 블록 높이
       out.push(prop(min, max, T.deskFaces(o.deskWood, ...size(min, max))));
     }
     if (o.kb) out.push({

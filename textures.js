@@ -76,6 +76,9 @@ function bookshelfSide(tw, th) {
 function deskFaces(kind, w, h, d) {
   return boxFaces(w, h, d, (face, tw, th) => {
     const top = face === 'top' || face === 'bottom';
+    // 원본: 판자는 그 나무 판자, 책장은 옆면 책장 + 위아래 참나무 판자. 반 블록이라 옆면은 텍스처 아래 절반
+    const real = vanillaTiled(kind === 'bookshelf' ? (top ? 'oak_planks' : 'bookshelf') : kind + '_planks', tw, th, { yOff: sideOff(face, th) });
+    if (real) return real;
     if (kind === 'bookshelf') return top ? planks('oak', tw, th) : bookshelfSide(tw, th);
     return planks(kind, tw, th);
   });
@@ -181,11 +184,11 @@ const sideOff = (face, th) => (face === 'top' || face === 'bottom' || th >= 16 ?
 
 /* ---------- 제작대 ---------- */
 const CRAFTING_TEXTURES = ['crafting_table_top', 'crafting_table_front', 'crafting_table_side', 'oak_planks'];
-/** 원본으로 그리는 블록 전부 (제작대 · 원목 · 버튼 받침과 버튼) */
+/** 원본으로 그리는 블록 전부 (책상 · 제작대 · 원목 · 버튼 받침과 버튼) */
 const VANILLA_TEXTURES = [
   ...CRAFTING_TEXTURES,
   ...['oak', 'birch', 'spruce', 'dark_oak'].flatMap(k => [k + '_log', k + '_log_top']),
-  'stone', 'stone_bricks', 'birch_planks', 'spruce_planks',
+  'stone', 'stone_bricks', 'birch_planks', 'spruce_planks', 'dark_oak_planks', 'bookshelf',
 ];
 function craftingFaces(w, h, d) {
   if (CRAFTING_TEXTURES.every(n => vanilla.has(n))) {

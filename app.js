@@ -471,7 +471,7 @@ optionsForm.addEventListener('reset', () => setTimeout(scheduleRender)); // rese
 // 원목·버튼 받침·제작대는 마인크래프트 원본 텍스처를 받아 쓴다. 못 받은 것은 직접 그린 텍스처로 그린다
 window.PetTextures.loadVanilla(window.PetTextures.VANILLA_TEXTURES).then(ok => {
   $('vanilla-note').textContent = ok
-    ? '원목·블록·제작대는 마인크래프트 원본 텍스처를 쓰고 있어요.'
+    ? '블록은 마인크래프트 원본 텍스처를 쓰고 있어요.'
     : '⚠ 원본 텍스처 일부를 불러오지 못해 비슷하게 그린 텍스처로 대신했어요.';
   scheduleRender();
 });
