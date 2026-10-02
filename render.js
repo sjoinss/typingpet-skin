@@ -225,7 +225,9 @@ const FACE_DEF = (x0, y0, z0, x1, y1, z1) => {
     ['right',  [x0, y1, z0], [0, 0, d], [0, -h, 0]],
     ['left',   [x1, y1, z1], [0, 0, -d], [0, -h, 0]],
     ['top',    [x0, y1, z0], [w, 0, 0], [0, 0, d]],
-    ['bottom', [x0, y0, z1], [w, 0, 0], [0, 0, -d]],
+    // 아랫면: 스킨의 아랫면 칸은 위쪽 줄(v=0)이 뒤쪽에 붙는다 (마인크래프트 ModelPart.Cube와 같은 배치).
+    // 아래에서 보면 좌우가 거울처럼 뒤집힌 배치라, 바깥 방향(법선)을 반대로 계산하도록 표시한다
+    ['bottom', [x0, y0, z0], [w, 0, 0], [0, 0, d], true],
   ];
 };
 function texRect(b, face) {
@@ -293,9 +295,9 @@ function rasterFace(O, U, V, z0, zu, zv, tex, r, shade) {
 
 function drawBox(b, o, fit) {
   const s = fit.s * SS;
-  for (const [name, tl, U, V] of FACE_DEF(...b.min, ...b.max)) {
+  for (const [name, tl, U, V, mirrored] of FACE_DEF(...b.min, ...b.max)) {
     const P0 = camP(b.xf(tl), o), PU = camP(b.xf(add(tl, U)), o), PV = camP(b.xf(add(tl, V)), o);
-    const u = sub(PU, P0), v = sub(PV, P0), n = cross(v, u);
+    const u = sub(PU, P0), v = sub(PV, P0), n = mirrored ? cross(u, v) : cross(v, u);
     // 겉옷 층은 게임처럼 양면으로 그린다 (모자 구멍 사이로 안쪽이 보이게)
     if (n[2] <= 1e-7 && !b.overlay) continue;
     const { img, r } = texRect(b, name);
