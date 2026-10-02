@@ -67,15 +67,15 @@
       </label>
       <label class="scene-option">
         <input type="radio" name="scene" value="tree">
-        <span class="scene-card"><span class="scene-name">나무 캐기</span><span class="scene-desc">도끼를 치켜들었다 내려찍기</span></span>
+        <span class="scene-card"><span class="scene-name">나무 캐기</span><span class="scene-desc">눕힌 원목을 손으로 번갈아 내리치기</span></span>
       </label>
       <label class="scene-option">
         <input type="radio" name="scene" value="button">
-        <span class="scene-card"><span class="scene-name">버튼 누르기</span><span class="scene-desc">왼쪽·오른쪽 버튼 꾹 누르기</span></span>
+        <span class="scene-card"><span class="scene-name">버튼 누르기</span><span class="scene-desc">반 블록 위 버튼을 번갈아 누르기</span></span>
       </label>
       <label class="scene-option">
         <input type="radio" name="scene" value="crafting">
-        <span class="scene-card"><span class="scene-name">제작대로 조합하기</span><span class="scene-desc">제작대 위에서 손 번갈아 움직이기</span></span>
+        <span class="scene-card"><span class="scene-name">제작대로 조합하기</span><span class="scene-desc">마크 제작대 위에서 손 번갈아 움직이기</span></span>
       </label>
     </fieldset>
   </section>
@@ -181,7 +181,7 @@
       <fieldset>
         <legend>자세</legend>
         <div class="field range" data-scenes="desk tree crafting"><label class="field-label" for="raise" id="raise-label">팔 드는 높이</label><output for="raise" id="raise-out"></output><input type="range" id="raise" min="100" max="180" value="145"></div>
-        <div class="field range" data-scenes="desk crafting"><label class="field-label" for="spread">팔 벌리기</label><output for="spread" id="spread-out"></output><input type="range" id="spread" min="0" max="35" value="12"></div>
+        <div class="field range" data-scenes="desk tree crafting"><label class="field-label" for="spread">팔 벌리기</label><output for="spread" id="spread-out"></output><input type="range" id="spread" min="0" max="35" value="12"></div>
         <div class="field range"><label class="field-label" for="headPitch">고개 숙이기</label><output for="headPitch" id="headPitch-out"></output><input type="range" id="headPitch" min="-15" max="30" value="8"></div>
       </fieldset>
 
@@ -228,16 +228,6 @@
               <option value="dark_oak">짙은 참나무</option>
             </select>
           </div>
-          <div class="field">
-            <label class="field-label" for="axeKind">도끼</label>
-            <select class="select" id="axeKind">
-              <option value="wood">나무 도끼</option>
-              <option value="stone">돌 도끼</option>
-              <option value="iron">철 도끼</option>
-              <option value="gold">금 도끼</option>
-              <option value="diamond" selected>다이아몬드 도끼</option>
-            </select>
-          </div>
         </div>
         <div data-scenes="button" class="prop-group">
           <div class="field">
@@ -259,7 +249,7 @@
             </select>
           </div>
         </div>
-        <p data-scenes="crafting" class="helper">제작대는 따로 고를 것이 없어요.</p>
+        <p data-scenes="crafting" class="helper" id="craft-note" role="status">마인크래프트 원본 제작대 텍스처를 불러오는 중…</p>
       </fieldset>
 
       <fieldset>

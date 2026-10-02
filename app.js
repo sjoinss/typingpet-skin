@@ -17,7 +17,6 @@ const poseLabel = id => POSES.find(p => p.id === id).label;
 /* 움직임: [모습, 시간(1/100초), 통통 튀기] — 미리보기 재생과 GIF가 같은 순서를 쓴다 */
 const TIMELINES = {
   typing: [['left', 12, 1], ['right', 12, 1], ['left', 12, 1], ['right', 12, 1], ['left', 12, 1], ['right', 12, 1], ['idle', 80, 0]],
-  chop: [['left', 30, 0], ['right', 16, 1], ['left', 30, 0], ['right', 16, 1], ['idle', 70, 0]],
 };
 /** 상호작용마다 다른 설명 */
 const SCENE_INFO = {
@@ -26,8 +25,8 @@ const SCENE_INFO = {
     timeline: 'typing', swap: '왼손 ↔ 오른손 바꾸기', raise: '팔 드는 높이',
   },
   tree: {
-    notes: { idle: '도끼를 들고 서 있기', left: '도끼 치켜들기', right: '나무 내려찍기' },
-    timeline: 'chop', swap: '나무를 반대쪽에 두기', raise: '도끼 치켜드는 높이',
+    notes: { idle: '두 손 모두 원목 위', left: '왼손을 든 모습', right: '오른손을 든 모습' },
+    timeline: 'typing', swap: '왼손 ↔ 오른손 바꾸기', raise: '팔 드는 높이',
   },
   button: {
     notes: { idle: '두 손을 버튼 위에', left: '왼쪽 버튼 누르기', right: '오른쪽 버튼 누르기' },
@@ -172,7 +171,7 @@ const RANGE_UNITS = {
   headScale: '%', bodyScale: '%', raise: '°', spread: '°', headPitch: '°', yaw: '°', pitch: '°', outline: 'px', scale: '%',
 };
 const CHECKS = ['overlay', 'headTilt', 'swap', 'shade', 'desk', 'kb'];
-const VALUES = ['model', 'kbTheme', 'valign', 'deskWood', 'outlineColor', 'logKind', 'axeKind', 'blockKind', 'buttonKind'];
+const VALUES = ['model', 'kbTheme', 'valign', 'deskWood', 'outlineColor', 'logKind', 'blockKind', 'buttonKind'];
 
 function readOptions() {
   const o = { scene: currentScene() };
@@ -469,6 +468,13 @@ optionsForm.addEventListener('change', scheduleRender);
 optionsForm.addEventListener('reset', () => setTimeout(scheduleRender)); // reset 후 값이 바뀐 다음 다시 그린다
 
 /* ---------- 시작 ---------- */
+// 제작대는 마인크래프트 원본 텍스처를 받아 쓴다. 못 받으면 직접 그린 텍스처로 그린다
+window.PetTextures.loadVanilla(window.PetTextures.CRAFTING_TEXTURES).then(ok => {
+  $('craft-note').textContent = ok
+    ? '마인크래프트 원본 제작대 텍스처를 쓰고 있어요.'
+    : '⚠ 원본 제작대 텍스처를 불러오지 못해 비슷하게 그린 텍스처를 쓰고 있어요.';
+  if (ok) scheduleRender();
+});
 buildResults();
 applySceneUI();
 readOptions();

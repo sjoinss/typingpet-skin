@@ -32,12 +32,6 @@ const hash = (x, y, s = 0) => {
 };
 const mod16 = v => ((v % 16) + 16) % 16;
 const pick = (arr, x, y, s) => arr[hash(x, y, s) % arr.length];
-/** 색을 어둡게 (0~1) */
-function darken(hex, f) {
-  const n = parseInt(hex.slice(1), 16);
-  const c = v => Math.round(v * f).toString(16).padStart(2, '0');
-  return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255);
-}
 
 /* ---------- 판자 ---------- */
 const PLANKS = {
@@ -111,41 +105,68 @@ function barkPixel(kind, x, y) {
   // 세로 결: 같은 열에서 비슷한 색이 길게 이어진다
   return p.bark[hash(x, Math.floor((y + hash(x, 0, 5) % 7) / 5), 3) % p.bark.length];
 }
-/** 금 간 자국 (블록 부수기 단계처럼): 가운데에서 뻗는 어두운 선 */
-function crackAt(x, y, tw, th) {
-  const cx = Math.floor(tw / 2), cy = Math.floor(th * 0.5);
-  const dx = x - cx, dy = y - cy;
-  if (Math.abs(dx) > 6 || Math.abs(dy) > 7) return false;
-  const lines = [[1, 1], [-1, 1], [1, -1], [-1, -2], [2, -1], [0, 1]];
-  return lines.some(([lx, ly]) => {
-    for (let t = 0; t <= 6; t++) {
-      const px = Math.round(lx * t * 0.9 + (hash(t, lx, 41) % 3 === 0 ? 1 : 0)), py = Math.round(ly * t * 0.9);
-      if (px === dx && py === dy) return true;
-    }
-    return false;
-  });
-}
-function logFaces(kind, w, h, d, cracked) {
+/** 가로로 눕힌 원목(x축 방향): 양 끝(left·right)은 나이테, 나머지 면은 나무껍질 결이 가로로 흐른다 */
+function logFaces(kind, w, h, d) {
+  const p = LOGS[kind];
   return boxFaces(w, h, d, (face, tw, th) => {
-    if (face === 'top' || face === 'bottom') {
-      const p = LOGS[kind];
-      return makeTex('logtop-' + kind, tw, th, (x, y) => {
-        const r = Math.max(Math.abs(mod16(x) - 7.5), Math.abs(mod16(y) - 7.5));
-        if (r > 6.5) return barkPixel(kind, x, y);
-        if (r < 1.5) return p.core;
-        return p.ring[Math.floor(r) % 2];
-      });
-    }
-    return makeTex(`bark-${kind}-${cracked ? 1 : 0}-${face}`, tw, th, (x, y) => {
-      const c = barkPixel(kind, x, y);
-      return cracked && (face === 'left' || face === 'right' || face === 'front') && crackAt(x, y, tw, th) ? darken(c, 0.35) : c;
+    if (face === 'left' || face === 'right') return makeTex('logend-' + kind, tw, th, (x, y) => {
+      const r = Math.max(Math.abs(mod16(x) - 7.5), Math.abs(mod16(y) - 7.5));
+      if (r > 6.5) return barkPixel(kind, x, y);
+      if (r < 1.5) return p.core;
+      return p.ring[Math.floor(r) % 2];
     });
+    return makeTex('bark-side-' + kind, tw, th, (x, y) => barkPixel(kind, y, x));
   });
 }
 const logChipColor = kind => LOGS[kind].bark[0];
 
+/* ---------- 마인크래프트 원본 텍스처 ----------
+ * 저장소에 원본 그림을 넣지 않고, 실행할 때 공개 에셋 미러에서 받아 온다 (CORS 허용).
+ * 못 받으면 아래의 직접 그린 텍스처를 쓴다.
+ */
+const VANILLA_SOURCES = [
+  name => `https://assets.mcasset.cloud/1.21.4/assets/minecraft/textures/block/${name}.png`,
+  name => `https://cdn.jsdelivr.net/gh/InventivetalentDev/minecraft-assets@1.21.4/assets/minecraft/textures/block/${name}.png`,
+];
+const vanilla = new Map(); // 이름 → 16×16 캔버스
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+/** 블록 텍스처 여러 개를 받아 둔다. 하나라도 실패하면 false (그때는 직접 그린 텍스처를 쓴다) */
+async function loadVanilla(names) {
+  const missing = names.filter(n => !vanilla.has(n));
+  if (missing.length === 0) return true;
+  for (const source of VANILLA_SOURCES) {
+    try {
+      const imgs = await Promise.all(missing.map(n => loadImage(source(n))));
+      imgs.forEach((img, i) => {
+        // 애니메이션 텍스처처럼 세로로 긴 그림은 첫 칸만 쓴다
+        const c = document.createElement('canvas'); c.width = 16; c.height = 16;
+        c.getContext('2d').drawImage(img, 0, 0, img.width, img.width, 0, 0, 16, 16);
+        vanilla.set(missing[i], c);
+      });
+      return true;
+    } catch {
+      // 다음 미러로
+    }
+  }
+  return false;
+}
+
 /* ---------- 제작대 ---------- */
+const CRAFTING_TEXTURES = ['crafting_table_top', 'crafting_table_front', 'crafting_table_side', 'oak_planks'];
 function craftingFaces(w, h, d) {
+  if (CRAFTING_TEXTURES.every(n => vanilla.has(n))) {
+    const names = { top: 'crafting_table_top', bottom: 'oak_planks', front: 'crafting_table_front',
+      back: 'crafting_table_front', left: 'crafting_table_side', right: 'crafting_table_side' };
+    return boxFaces(w, h, d, face => vanilla.get(names[face]));
+  }
   const metal = ['#9a9a9a', '#c6c6c6', '#6e6e6e'];
   return boxFaces(w, h, d, (face, tw, th) => {
     if (face === 'top') return makeTex('craft-top', tw, th, (x, y) => {
@@ -193,42 +214,6 @@ function buttonFaces(kind, w, h, d) {
     : planks(kind, tw, th));
 }
 
-/* ---------- 도끼 (16×16 아이템 그림) ---------- */
-const AXE_MAP = [
-  '................',
-  '........ooo.....',
-  '.......ohhHo....',
-  '......ohhHHHo...',
-  '......ohHHHHHo..',
-  '.......oSHHHHo..',
-  '......sS.oHHHo..',
-  '.....sS...oHo...',
-  '....sS.....o....',
-  '...sS...........',
-  '..sS............',
-  '.sS.............',
-  'sS..............',
-  '................',
-  '................',
-  '................',
-];
-/** 손잡이 쥐는 곳 (텍셀 좌표) */
-const AXE_GRIP = [3.5, 9.5];
-const AXES = {
-  wood:    { h: '#b38a52', H: '#8f6a3a', o: '#4a3418' },
-  stone:   { h: '#a8a8a8', H: '#8a8a8a', o: '#4a4a4a' },
-  iron:    { h: '#ffffff', H: '#d8d8d8', o: '#6b6b6b' },
-  gold:    { h: '#fff3a0', H: '#f2d04a', o: '#8a6410' },
-  diamond: { h: '#a8fff4', H: '#4ee6d4', o: '#1f6e66' },
-};
-function axeSprite(kind, mirrored) {
-  const pal = { ...AXES[kind], s: '#8a6a3c', S: '#5c4325' };
-  return makeTex(`axe-${kind}-${mirrored ? 1 : 0}`, 16, 16, (x, y) => {
-    const ch = AXE_MAP[y][mirrored ? 15 - x : x];
-    return ch === '.' ? null : pal[ch];
-  });
-}
-
 /* ---------- 키보드 ---------- */
 const KB_THEMES = {
   white: { frame: '#cfd2d8', key: '#fbfbfc', keyEdge: '#dfe1e6' },
@@ -257,6 +242,6 @@ const clear = () => makeTex('clear', 1, 1, () => null);
 
 window.PetTextures = {
   boxFaces, deskFaces, logFaces, logChipColor, craftingFaces, blockFaces, buttonFaces,
-  axeSprite, AXE_GRIP, KB_THEMES, keyboardTop, solid, clear,
+  CRAFTING_TEXTURES, loadVanilla, KB_THEMES, keyboardTop, solid, clear,
 };
 })();

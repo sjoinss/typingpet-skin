@@ -114,25 +114,9 @@ function character(o, { arms, head, legs = true }) {
 const size = (min, max) => [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
 const prop = (min, max, faceTex, src = T.clear()) => ({ min, max, faceTex, src, xf: IDENT });
 
-/** 16×16 아이템 그림을 손에 쥔다. 그림은 팔이 뻗는 방향으로 이어지고, 납작한 면이 팔이 휘두르는 면과 같다 */
-function heldAxe(kind, armXf, handX, mirrored) {
-  const [gu, gv] = T.AXE_GRIP;
-  const gx = mirrored ? 16 - gu : gu;
-  const ang = (mirrored ? 135 : -135) * DEG; // 손잡이→도끼날 대각선을 팔 방향(-y)에 맞춘다
-  const grip = [handX, 12.5, 0];
-  return {
-    min: [-gx, gv - 16, -0.5], max: [16 - gx, gv, 0.5], src: T.clear(),
-    xf: p => armXf(add(grip, rotZ(p, ang))),
-    faceTex: {
-      front: { img: T.axeSprite(kind, mirrored), r: [0, 0, 16, 16] },
-      back: { img: T.axeSprite(kind, !mirrored), r: [0, 0, 16, 16] },
-    },
-  };
-}
-
 const DOWN = -70 * DEG; // 손이 키보드·제작대 위에 닿는 각도
 
-/** 손을 번갈아 드는 기본 자세 (책상·제작대) */
+/** 손을 번갈아 드는 기본 자세 (책상·제작대·나무) */
 function typingArms(which, o) {
   const side = activeSide(which, o), up = -o.raise * DEG, sp = o.spread * DEG;
   const arm = s => side === s ? { rx: up, rz: (s === 'L' ? 1 : -1) * sp } : { rx: DOWN, rz: 0 };
@@ -162,14 +146,15 @@ const SCENES = {
   },
 
   button(which, o) {
-    // 평소엔 두 손이 버튼 위에 떠 있고, 누르는 손만 내려간다
+    // 책상 높이의 반 블록 위 버튼. 평소엔 두 손이 버튼 위에 떠 있고, 누르는 손만 내려간다
     const side = activeSide(which, o), HOVER = -86 * DEG, PRESS = -74 * DEG;
     const arm = s => ({ rx: side === s ? PRESS : HOVER, rz: 0 });
     const head = headFor(side, o);
     head.rx += 6 * DEG;
-    const ch = character(o, { arms: { L: arm('L'), R: arm('R') }, head });
+    const ch = character(o, { arms: { L: arm('L'), R: arm('R') }, head, legs: false });
     const out = ch.boxes;
-    out.push(prop([-16, 0, 3], [16, 16, 19], T.blockFaces(o.blockKind, 32, 16, 16)));
+    const min = [-16, 8, 3], max = [16, 16, 16];
+    out.push(prop(min, max, T.blockFaces(o.blockKind, ...size(min, max))));
     for (const s of ['L', 'R']) {
       const cx = ch.armX[s], h = side === s ? 1 : 2;
       out.push(prop([cx - 3, 16, 6.5], [cx + 3, 16 + h, 10.5], T.buttonFaces(o.buttonKind, 6, h, 4)));
@@ -178,26 +163,19 @@ const SCENES = {
   },
 
   tree(which, o) {
-    // 기본 = 도끼 들고 서 있기, 왼손 칸 = 치켜들기, 오른손 칸 = 내려찍기 (번갈아 바뀌면 나무를 찍는다)
-    const m = o.swap ? -1 : 1;              // 나무가 있는 쪽 (+1 = 화면 오른쪽)
-    const axeSide = m > 0 ? 'R' : 'L', free = m > 0 ? 'L' : 'R';
-    const swing = {
-      idle: { rx: -15 * DEG, rz: m * 12 * DEG },
-      left: { rx: -20 * DEG, rz: m * o.raise * DEG },
-      right: { rx: -10 * DEG, rz: m * 70 * DEG },
-    }[which];
-    const arms = { [axeSide]: swing, [free]: { rx: -8 * DEG, rz: -m * 5 * DEG } };
-    const head = { rx: o.headPitch * DEG * 0.5, ry: m * 35 * DEG, rz: o.headTilt && which === 'left' ? -m * 5 * DEG : 0 };
-    const ch = character(o, { arms, head });
+    // 앞에 눕힌 원목을 키보드 치듯 손으로 번갈아 내리친다
+    const { side, arms } = typingArms(which, o);
+    const ch = character(o, { arms, head: headFor(side, o) });
     const out = ch.boxes;
-    out.push(heldAxe(o.axeKind, ch.armXf[axeSide], ch.armX[axeSide], m > 0));
-    const x0 = m > 0 ? 24 : -40;
-    out.push(prop([x0, 0, -8], [x0 + 16, 32, 8], T.logFaces(o.logKind, 16, 32, 16, which === 'right')));
-    if (which === 'right') {
-      // 찍는 순간 튀는 나무 조각
-      const chip = T.solid(T.logChipColor(o.logKind)), ix = m * 22.5;
-      for (const [dx, dy, dz] of [[-1, 3, 3], [-2.5, -1, -3], [-3.5, 5, -1], [-1.5, 1, 5]])
-        out.push({ min: [ix + m * dx - .6, 17 + dy - .6, dz - .6], max: [ix + m * dx + .6, 17 + dy + .6, dz + .6], src: chip, xf: IDENT });
+    out.push(prop([-16, 0, 3], [16, 16, 19], T.logFaces(o.logKind, 32, 16, 16)));
+    if (side) {
+      // 내려친 손 옆으로 튀는 나무 조각
+      const down = side === 'L' ? 'R' : 'L', cx = ch.armX[down], dir = down === 'L' ? -1 : 1;
+      const chip = T.solid(T.logChipColor(o.logKind));
+      for (const [dx, dy, dz] of [[3, 2, 1], [4.5, 4, -1.5], [-2.5, 3, 2.5], [1.5, 5.5, 4]]) {
+        const c = [cx + dir * dx, 16 + dy, 9 + dz];
+        out.push({ min: c.map(v => v - .6), max: c.map(v => v + .6), src: chip, xf: IDENT });
+      }
     }
     return out;
   },
