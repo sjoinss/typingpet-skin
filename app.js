@@ -468,13 +468,16 @@ optionsForm.addEventListener('change', scheduleRender);
 optionsForm.addEventListener('reset', () => setTimeout(scheduleRender)); // reset 후 값이 바뀐 다음 다시 그린다
 
 /* ---------- 시작 ---------- */
-// 제작대는 마인크래프트 원본 텍스처를 받아 쓴다. 못 받으면 직접 그린 텍스처로 그린다
-window.PetTextures.loadVanilla(window.PetTextures.CRAFTING_TEXTURES).then(ok => {
-  $('craft-note').textContent = ok
-    ? '마인크래프트 원본 제작대 텍스처를 쓰고 있어요.'
-    : '⚠ 원본 제작대 텍스처를 불러오지 못해 비슷하게 그린 텍스처를 쓰고 있어요.';
-  if (ok) scheduleRender();
+// 원목·버튼 받침·제작대는 마인크래프트 원본 텍스처를 받아 쓴다. 못 받은 것은 직접 그린 텍스처로 그린다
+window.PetTextures.loadVanilla(window.PetTextures.VANILLA_TEXTURES).then(ok => {
+  $('vanilla-note').textContent = ok
+    ? '원목·블록·제작대는 마인크래프트 원본 텍스처를 쓰고 있어요.'
+    : '⚠ 원본 텍스처 일부를 불러오지 못해 비슷하게 그린 텍스처로 대신했어요.';
+  scheduleRender();
 });
+// ?scene=tree 처럼 주소로 상호작용을 고를 수 있다 (공유 링크용)
+const initialScene = document.querySelector(`input[name="scene"][value="${CSS.escape(new URLSearchParams(location.search).get('scene') || '')}"]`);
+if (initialScene) initialScene.checked = true;
 buildResults();
 applySceneUI();
 readOptions();

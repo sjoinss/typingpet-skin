@@ -109,6 +109,9 @@ function barkPixel(kind, x, y) {
 function logFaces(kind, w, h, d) {
   const p = LOGS[kind];
   return boxFaces(w, h, d, (face, tw, th) => {
+    const end = face === 'left' || face === 'right';
+    const real = end ? vanillaTiled(kind + '_log_top', tw, th) : vanillaTiled(kind + '_log', tw, th, { rotate: true });
+    if (real) return real;
     if (face === 'left' || face === 'right') return makeTex('logend-' + kind, tw, th, (x, y) => {
       const r = Math.max(Math.abs(mod16(x) - 7.5), Math.abs(mod16(y) - 7.5));
       if (r > 6.5) return barkPixel(kind, x, y);
@@ -138,29 +141,52 @@ function loadImage(src) {
     img.src = src;
   });
 }
-/** 블록 텍스처 여러 개를 받아 둔다. 하나라도 실패하면 false (그때는 직접 그린 텍스처를 쓴다) */
+/** 블록 텍스처를 이름마다 받아 둔다. 미러를 차례로 시도하고, 전부 받으면 true (못 받은 것은 직접 그린 텍스처로 대신한다) */
 async function loadVanilla(names) {
-  const missing = names.filter(n => !vanilla.has(n));
-  if (missing.length === 0) return true;
-  for (const source of VANILLA_SOURCES) {
-    try {
-      const imgs = await Promise.all(missing.map(n => loadImage(source(n))));
-      imgs.forEach((img, i) => {
+  const results = await Promise.all(names.map(async name => {
+    if (vanilla.has(name)) return true;
+    for (const source of VANILLA_SOURCES) {
+      try {
+        const img = await loadImage(source(name));
         // 애니메이션 텍스처처럼 세로로 긴 그림은 첫 칸만 쓴다
         const c = document.createElement('canvas'); c.width = 16; c.height = 16;
         c.getContext('2d').drawImage(img, 0, 0, img.width, img.width, 0, 0, 16, 16);
-        vanilla.set(missing[i], c);
-      });
-      return true;
-    } catch {
-      // 다음 미러로
+        vanilla.set(name, c);
+        return true;
+      } catch {
+        // 다음 미러로
+      }
     }
-  }
-  return false;
+    return false;
+  }));
+  return results.every(Boolean);
 }
+
+/**
+ * 원본 16×16 텍스처를 면 크기에 맞게 바둑판처럼 이어 붙인다.
+ * rotate: 결 방향을 90° 돌림 (눕힌 원목). yOff: 아래쪽에서 시작 (반 블록 옆면은 텍스처 아래 절반)
+ */
+function vanillaTiled(name, tw, th, { rotate = false, yOff = 0 } = {}) {
+  const src = vanilla.get(name);
+  if (!src) return null;
+  const d = src.getContext('2d').getImageData(0, 0, 16, 16).data;
+  const hex = v => v.toString(16).padStart(2, '0');
+  return makeTex(`v-${name}-${rotate ? 1 : 0}-${yOff}`, tw, th, (x, y) => {
+    const u = mod16(rotate ? y : x), v = mod16((rotate ? x : y) + yOff), i = (v * 16 + u) * 4;
+    return d[i + 3] < 128 ? null : '#' + hex(d[i]) + hex(d[i + 1]) + hex(d[i + 2]);
+  });
+}
+/** 옆면이 16칸보다 낮으면(반 블록, 버튼) 게임처럼 텍스처 아래쪽을 쓴다 */
+const sideOff = (face, th) => (face === 'top' || face === 'bottom' || th >= 16 ? 0 : 16 - th);
 
 /* ---------- 제작대 ---------- */
 const CRAFTING_TEXTURES = ['crafting_table_top', 'crafting_table_front', 'crafting_table_side', 'oak_planks'];
+/** 원본으로 그리는 블록 전부 (제작대 · 원목 · 버튼 받침과 버튼) */
+const VANILLA_TEXTURES = [
+  ...CRAFTING_TEXTURES,
+  ...['oak', 'birch', 'spruce', 'dark_oak'].flatMap(k => [k + '_log', k + '_log_top']),
+  'stone', 'stone_bricks', 'birch_planks', 'spruce_planks',
+];
 function craftingFaces(w, h, d) {
   if (CRAFTING_TEXTURES.every(n => vanilla.has(n))) {
     const names = { top: 'crafting_table_top', bottom: 'oak_planks', front: 'crafting_table_front',
@@ -195,6 +221,8 @@ function craftingFaces(w, h, d) {
 }
 
 /* ---------- 돌 블록 · 버튼 ---------- */
+/** 받침·버튼 재질 → 원본 텍스처 이름 */
+const BLOCK_TEXTURE = { stone: 'stone', stone_bricks: 'stone_bricks', oak: 'oak_planks', birch: 'birch_planks', spruce: 'spruce_planks' };
 const STONE = ['#7f7f7f', '#747474', '#8a8a8a', '#7a7a7a', '#6b6b6b'];
 const stonePixel = (x, y) => pick(STONE, Math.floor(x / (hash(y, 1, 2) % 2 + 1)), y, 11);
 function stoneBrickPixel(x, y) {
@@ -204,11 +232,13 @@ function stoneBrickPixel(x, y) {
   return pick(['#7b7b7b', '#757575', '#818181'], x, y, 13);
 }
 function blockFaces(kind, w, h, d) {
+  if (vanilla.has(BLOCK_TEXTURE[kind])) return boxFaces(w, h, d, (f, tw, th) => vanillaTiled(BLOCK_TEXTURE[kind], tw, th, { yOff: sideOff(f, th) }));
   if (kind === 'stone') return boxFaces(w, h, d, (f, tw, th) => makeTex('stone', tw, th, stonePixel));
   if (kind === 'stone_bricks') return boxFaces(w, h, d, (f, tw, th) => makeTex('stonebricks', tw, th, stoneBrickPixel));
   return boxFaces(w, h, d, (f, tw, th) => planks(kind, tw, th));
 }
 function buttonFaces(kind, w, h, d) {
+  if (vanilla.has(BLOCK_TEXTURE[kind])) return boxFaces(w, h, d, (f, tw, th) => vanillaTiled(BLOCK_TEXTURE[kind], tw, th, { yOff: sideOff(f, th) }));
   return boxFaces(w, h, d, (f, tw, th) => kind === 'stone'
     ? makeTex('button-stone', tw, th, (x, y) => pick(['#8f8f8f', '#868686', '#999999'], x, y, 17))
     : planks(kind, tw, th));
@@ -242,6 +272,6 @@ const clear = () => makeTex('clear', 1, 1, () => null);
 
 window.PetTextures = {
   boxFaces, deskFaces, logFaces, logChipColor, craftingFaces, blockFaces, buttonFaces,
-  CRAFTING_TEXTURES, loadVanilla, KB_THEMES, keyboardTop, solid, clear,
+  VANILLA_TEXTURES, loadVanilla, KB_THEMES, keyboardTop, solid, clear,
 };
 })();
